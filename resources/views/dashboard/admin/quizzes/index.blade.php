@@ -23,6 +23,8 @@
         overflow: hidden;
         position: relative;
         box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
     }
 
     .quiz-toolbar {
@@ -86,7 +88,9 @@
         .quiz-canvas {
             position: relative;
             width: 100%;
-            height: 80vh;
+            /* let it flex to fill container height */
+            height: auto;
+            flex: 1 1 auto;
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border: 2px solid #dee2e6;
             border-radius: 12px;
@@ -108,7 +112,8 @@
         width: 3000px;
         height: 2000px;
         transform-origin: 0 0;
-        transition: transform 0.1s ease-out;
+        transition: transform 0.06s ease-out;
+        will-change: transform;
         background-image: 
             linear-gradient(to right, #e9ecef 1px, transparent 1px),
             linear-gradient(to bottom, #e9ecef 1px, transparent 1px);
@@ -463,7 +468,7 @@
         color: white;
         padding: 20px 25px;
         display: flex;
-        justify-content: between;
+        justify-content: space-between;
         align-items: center;
     }
 
@@ -633,6 +638,9 @@
                 <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom">
                     <i class="fas fa-home"></i>
                 </button>
+                <button class="zoom-btn" onclick="fitToScreen()" title="Fit to Screen">
+                    <i class="fas fa-expand"></i>
+                </button>
                 <div class="zoom-info" id="zoom-info">
                     <span id="zoom-level">100%</span>
                 </div>
@@ -773,7 +781,7 @@
 </div>
 @endsection
 
-@push('scripts')
+@section('scripts')
 <script>
 let nodes = [];
 let isDragging = false;
@@ -785,6 +793,7 @@ let panOffset = { x: 0, y: 0 };
 let zoomLevel = 1;
 let minZoom = 0.1;
 let maxZoom = 3;
+let userInteracted = false; // prevent auto-fit after user action
 
 // Global zoom functions - must be declared before DOM ready
 window.zoomIn = function() {
@@ -795,6 +804,7 @@ window.zoomIn = function() {
         updateTransform();
         updateZoomInfo();
         setTimeout(drawConnections, 10);
+        userInteracted = true;
     }
 };
 
@@ -806,6 +816,7 @@ window.zoomOut = function() {
         updateTransform();
         updateZoomInfo();
         setTimeout(drawConnections, 10);
+        userInteracted = true;
     }
 };
 
@@ -816,6 +827,7 @@ window.resetZoom = function() {
     updateTransform();
     updateZoomInfo();
     setTimeout(drawConnections, 10);
+    userInteracted = true;
 };
 
 // Initialize the flowchart
@@ -825,6 +837,10 @@ document.addEventListener('DOMContentLoaded', function() {
     setupZoomAndPan();
     drawConnections();
     updateZoomInfo();
+    // Auto-fit initially for better layout visibility
+    if (nodes.length > 0) {
+        setTimeout(() => !userInteracted && fitToScreen(120), 200);
+    }
 });
 
 function initializeFlowchart() {
@@ -842,22 +858,35 @@ function setupZoomAndPan() {
     
     console.log('Setting up zoom and pan...', canvas, container);
     
-    // Mouse wheel zoom
-    canvas.addEventListener('wheel', function(e) {
+    // Mouse wheel zoom (focus on cursor)
+    const onWheel = function(e) {
         console.log('Wheel event detected!');
         e.preventDefault();
-        
+
+        const rect = canvas.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
         const newZoom = Math.max(minZoom, Math.min(maxZoom, zoomLevel + delta));
-        
+
         if (newZoom !== zoomLevel) {
-            console.log('Zooming from', zoomLevel, 'to', newZoom);
+            // Compute canvas point under cursor before zoom
+            const canvasPointX = (cursorX - panOffset.x) / zoomLevel;
+            const canvasPointY = (cursorY - panOffset.y) / zoomLevel;
+
+            // Update zoom, then adjust pan so point stays under cursor
             zoomLevel = newZoom;
+            panOffset.x = cursorX - canvasPointX * zoomLevel;
+            panOffset.y = cursorY - canvasPointY * zoomLevel;
+
             updateTransform();
             updateZoomInfo();
             setTimeout(drawConnections, 10);
+            userInteracted = true;
         }
-    });
+    };
+    canvas.addEventListener('wheel', onWheel, { passive: false });
     
     // Pan functionality with simple detection
     canvas.addEventListener('mousedown', function(e) {
@@ -871,6 +900,7 @@ function setupZoomAndPan() {
             panStart.x = e.clientX - panOffset.x;
             panStart.y = e.clientY - panOffset.y;
             e.preventDefault();
+            userInteracted = true;
         }
     });
     
@@ -890,6 +920,7 @@ function setupZoomAndPan() {
             isPanning = false;
             canvas.classList.remove('panning');
             drawConnections();
+            userInteracted = true;
         }
     });
     
@@ -909,7 +940,12 @@ function updateZoomInfo() {
     const zoomInfo = document.getElementById('zoom-info');
     if (zoomInfo) {
         const percentage = Math.round(zoomLevel * 100);
-        zoomInfo.textContent = percentage + '%';
+        const zoomText = document.getElementById('zoom-level');
+        if (zoomText) {
+            zoomText.textContent = percentage + '%';
+        } else {
+            zoomInfo.textContent = percentage + '%';
+        }
         
         // Update zoom info color based on zoom level
         if (percentage < 50) {
@@ -944,6 +980,7 @@ function setupDragAndDrop() {
             
             e.preventDefault();
             e.stopPropagation();
+            userInteracted = true;
         });
     });
     
@@ -963,6 +1000,7 @@ function setupDragAndDrop() {
         dragNode.element.style.top = dragNode.y + 'px';
         
         drawConnections();
+        userInteracted = true;
     });
     
     document.addEventListener('mouseup', function() {
@@ -993,14 +1031,17 @@ function drawConnections() {
             const targetNode = nodes.find(n => n.id === nextNodeId);
             
             if (targetNode) {
-                // Calculate connection points based on actual node positions
-                const nodeWidth = 300;
-                const nodeHeight = 200;
-                
-                const startX = sourceNode.x + nodeWidth; // Right edge of source node
-                const startY = sourceNode.y + (nodeHeight / 2); // Middle of source node
-                const endX = targetNode.x - 10; // Left edge of target node  
-                const endY = targetNode.y + (nodeHeight / 2); // Middle of target node
+                // Calculate connection points based on actual node sizes
+                const srcW = sourceElement.offsetWidth || 300;
+                const srcH = sourceElement.offsetHeight || 200;
+                const tgtEl = targetNode.element;
+                const tgtW = tgtEl.offsetWidth || 300;
+                const tgtH = tgtEl.offsetHeight || 200;
+
+                const startX = sourceNode.x + srcW; // Right edge of source node
+                const startY = sourceNode.y + (srcH / 2); // Middle of source node
+                const endX = targetNode.x - 10; // Slight inset before left edge of target
+                const endY = targetNode.y + (tgtH / 2); // Middle of target node
                 
                 // Create connection line with better visual
                 const line = document.createElement('div');
@@ -1045,7 +1086,49 @@ function drawConnections() {
     });
 }
 
-function switchView(viewType) {
+// Fit all nodes into view, with optional padding
+window.fitToScreen = function(padding = 100) {
+    const canvas = document.querySelector('.quiz-canvas');
+    const container = document.getElementById('canvas-container');
+    if (!canvas || !container || nodes.length === 0) {
+        resetZoom();
+        return;
+    }
+
+    // Compute bounding box of all nodes
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach(n => {
+        const el = n.element;
+        const w = el.offsetWidth || 300;
+        const h = el.offsetHeight || 200;
+        minX = Math.min(minX, n.x);
+        minY = Math.min(minY, n.y);
+        maxX = Math.max(maxX, n.x + w);
+        maxY = Math.max(maxY, n.y + h);
+    });
+
+    const bboxW = Math.max(1, maxX - minX);
+    const bboxH = Math.max(1, maxY - minY);
+
+    const viewW = canvas.clientWidth - padding * 2;
+    const viewH = canvas.clientHeight - padding * 2;
+    const scaleX = viewW / bboxW;
+    const scaleY = viewH / bboxH;
+    const newZoom = Math.max(minZoom, Math.min(maxZoom, Math.min(scaleX, scaleY)));
+
+    zoomLevel = newZoom;
+    // Center content
+    const contentW = bboxW * zoomLevel;
+    const contentH = bboxH * zoomLevel;
+    panOffset.x = padding + (canvas.clientWidth - padding * 2 - contentW) / 2 - minX * zoomLevel;
+    panOffset.y = padding + (canvas.clientHeight - padding * 2 - contentH) / 2 - minY * zoomLevel;
+
+    updateTransform();
+    updateZoomInfo();
+    setTimeout(drawConnections, 10);
+};
+
+window.switchView = function(viewType) {
     const flowchartView = document.getElementById('flowchart-view');
     const tableView = document.getElementById('table-view');
     const flowchartBtn = document.getElementById('flowchart-btn');
@@ -1068,7 +1151,7 @@ function switchView(viewType) {
     }
 }
 
-function autoArrange() {
+window.autoArrange = function() {
     if (nodes.length === 0) {
         showNotification('No nodes to arrange!', 'error');
         return;
@@ -1136,7 +1219,7 @@ function autoArrange() {
     showNotification('Nodes auto-arranged in logical flow! Don\'t forget to save.', 'success');
 }
 
-function saveAllNodePositions() {
+window.saveAllNodePositions = function() {
     if (nodes.length === 0) {
         showNotification('No nodes to save!', 'error');
         return;
@@ -1217,7 +1300,13 @@ window.addEventListener('beforeunload', function() {
 
 // Redraw connections when window is resized
 window.addEventListener('resize', function() {
-    setTimeout(drawConnections, 100);
+    setTimeout(() => {
+        if (!userInteracted) {
+            fitToScreen(120);
+        } else {
+            drawConnections();
+        }
+    }, 150);
 });
 
 // Auto-hide success messages
@@ -1236,4 +1325,4 @@ setTimeout(function() {
     });
 }, 3000);
 </script>
-@endpush
+@endsection

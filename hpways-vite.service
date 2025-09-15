@@ -1,0 +1,16 @@
+[Unit]
+Description=HPWays Vite Development Server
+After=network.target
+
+[Service]
+Type=simple
+User=curly11
+Group=curly11
+WorkingDirectory=/home/curly11/hpways
+ExecStart=/usr/bin/npm run dev
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=development
+
+[Install]
+WantedBy=multi-user.target

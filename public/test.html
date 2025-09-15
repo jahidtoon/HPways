@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPways Test</title>
+    <style>body{font-family:Arial,sans-serif;padding:20px}.success{color:green}.error{color:red}</style>
+</head>
+<body>
+    <h1>HPways Project Status</h1>
+    <div id="status">Testing...</div>
+    <script>
+        async function runTests() {
+            let results = '<h2>Test Results:</h2>';
+            try {
+                // Test Quiz State
+                const quizResponse = await fetch('/quiz/state', {headers: {'Accept': 'application/json'}});
+                const quizData = await quizResponse.json();
+                results += '<p class="success">✓ Quiz API Working</p>';
+                
+                // Test Login Page
+                const loginResponse = await fetch('/login');
+                if (loginResponse.ok) results += '<p class="success">✓ Login Page Working</p>';
+                else results += '<p class="error">✗ Login Page Failed</p>';
+                
+                // Test Home Page
+                const homeResponse = await fetch('/');
+                if (homeResponse.ok) results += '<p class="success">✓ Home Page Working</p>';
+                else results += '<p class="error">✗ Home Page Failed</p>';
+                
+            } catch (error) {
+                results += '<p class="error">✗ Error: ' + error.message + '</p>';
+            }
+            document.getElementById('status').innerHTML = results;
+        }
+        runTests();
+    </script>
+</body>
+</html>

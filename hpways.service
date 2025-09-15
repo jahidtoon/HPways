@@ -1,0 +1,16 @@
+[Unit]
+Description=HPWays Laravel Application
+After=network.target
+
+[Service]
+Type=simple
+User=curly11
+Group=curly11
+WorkingDirectory=/home/curly11/hpways
+ExecStart=/usr/bin/php artisan serve --host=0.0.0.0 --port=8081
+Restart=always
+RestartSec=5
+Environment=APP_ENV=production
+
+[Install]
+WantedBy=multi-user.target

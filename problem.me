@@ -1,0 +1,28 @@
+ধাপ ১: Auth ফিরিয়ে আনা ও public applicant রুটে auth middleware বসানো
+ধাপ ২: /me/application ফেইল হলে ড্যাশবোর্ডে “Start your first application” empty state
+ধাপ ৩: Package selection UI (packages array থেকে তিনটি tier বাটন; select করলে POST /applications/{id}/packages)
+ধাপ ৪: Documents section dynamic (API endpoint তৈরি: /applications/{id}/documents JSON) এবং table replace
+ধাপ ৫: Payment history dynamic (Payment model থেকে list endpoint + table)
+ধাপ ৬: Timeline events টেবিল + seeding (events table বা application_activity)
+ধাপ ৭: Progress সার্ভিস: rules (e.g. package selected +10%, >50% docs uploaded +30%, payment done +20%, review ready + remainder)
+ধাপ ৮: Global JS refactor (hardcoded নাম “John”, “Tourist Visa” dynamic)
+ধাপ ৯: Role-based redirect (non-applicant → own dashboard)
+ধাপ ১০: Security hardening (CSRF, policy checks on application/documents/payments)
+
+৫. কোন ডাটা টেবিল আরো লাগতে পারে
+application_activities (id, application_id, type, meta, created_at)
+notifications (optional later)
+document_requirements (static config এখন service এ থাকলে আলাদা table করলে manageable)
+৬. প্রথম স্প্রিন্টে করবো (আপনি OK বললে):
+১) Auth protection ফিরিয়ে দেওয়া (middleware restore)
+২) Dashboard index এ empty state & dynamic user name
+৩) /me/application না থাকলে “Create Application” বোতাম (quiz থেকে আসা visa_type থাকলে direct create endpoint কল)
+
+৭. আপনার নিশ্চিতকরণ দরকার
+এখনই auth enforce করবো? (পাবলিক রাখা হলে sensitive ডাটা expose হবে না কারণ এখন auth()->id() null এ blank—but better to secure)
+package selection UI লাগবে এখন?
+timeline লগ চান নাকি পরে?
+আপনি কোন ধাপগুলো আগে চান লিখুন (সংখ্যা অনুযায়ী)।
+বললেই পরের মেসেজে সেই ধাপ শুরু করে কোড বসিয়ে দেব।
+
+সংক্ষেপে: বর্তমান ড্যাশবোর্ড বেশিরভাগই static / placeholder; আমরা ধাপে ধাপে auth, dynamic data binding, package/doc/payment/timeline বাস্তবায়ন করব।

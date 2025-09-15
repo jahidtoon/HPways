@@ -1,0 +1,78 @@
+/* HP Ways CSS Styles */
+
+/* Base styles */
+body {
+    font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: #1e293b;
+}
+
+/* Header styles */
+.main-header {
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 2px 8px 0 rgba(80, 80, 200, 0.04);
+    padding: 0.2rem 0;
+}
+
+.top-header {
+    background: #193d91ff;
+    color: #fff;
+    padding: 0.30rem 0;
+}
+
+/* Navigation styles */
+.navbar-brand {
+    font-weight: 400;
+    font-size: 1.45rem;
+    color: #1e40af;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+}
+
+.navbar-brand img {
+    height: 56px;
+    margin-right: 12px;
+}
+
+.nav-link {
+    color: #1e293b;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+    color: #4f8cff;
+}
+
+/* Button styles */
+.btn-primary {
+    background-color: #1e40af;
+    border-color: #1e40af;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+    transform: translateY(-2px);
+}
+
+/* Utility classes */
+.text-muted {
+    color: #64748b;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+    
+    .navbar-brand img {
+        height: 48px;
+        margin-right: 8px;
+    }
+}

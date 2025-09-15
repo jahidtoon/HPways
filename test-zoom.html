@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Zoom</title>
+    <style>
+        .canvas { 
+            width: 400px; 
+            height: 300px; 
+            border: 1px solid #ccc; 
+            background: #f9f9f9;
+            overflow: hidden;
+            position: relative;
+        }
+        .content {
+            width: 100px;
+            height: 100px;
+            background: blue;
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            transform-origin: 0 0;
+        }
+    </style>
+</head>
+<body>
+    <button onclick="zoomIn()">Zoom In</button>
+    <button onclick="zoomOut()">Zoom Out</button>
+    <span id="zoom-info">100%</span>
+    
+    <div class="canvas">
+        <div class="content" id="content"></div>
+    </div>
+
+    <script>
+        let zoomLevel = 1;
+        
+        function zoomIn() {
+            zoomLevel += 0.2;
+            updateTransform();
+        }
+        
+        function zoomOut() {
+            zoomLevel -= 0.2;
+            updateTransform();
+        }
+        
+        function updateTransform() {
+            document.getElementById('content').style.transform = `scale(${zoomLevel})`;
+            document.getElementById('zoom-info').textContent = Math.round(zoomLevel * 100) + '%';
+        }
+    </script>
+</body>
+</html>

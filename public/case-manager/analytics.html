@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics - Case Manager Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #4361ee;
+      --primary-light: #4895ef;
+      --secondary: #3f37c9;
+      --success: #0cce6b;
+      --danger: #e5383b;
+      --warning: #ff9e00;
+      --info: #4cc9f0;
+      --light-bg: #f8fafc;
+      --dark: #212b36;
+      --card-border-radius: 1rem;
+      --transition-speed: 0.3s;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--dark);
+      min-height: 100vh;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    
+    /* Utility classes */
+    .d-flex {
+      display: flex;
+      align-items: center;
+    }
+    
+    .justify-between {
+      justify-content: space-between;
+    }
+    
+    .flex-column {
+      flex-direction: column;
+    }
+    
+    .gap-2 {
+      gap: 0.5rem;
+    }
+    
+    .gap-3 {
+      gap: 1rem;
+    }
+    
+    .me-2 {
+      margin-right: 0.5rem;
+    }
+    
+    .me-3 {
+      margin-right: 1rem;
+    }
+    
+    .mb-0 {
+      margin-bottom: 0;
+    }
+    
+    .mb-2 {
+      margin-bottom: 0.5rem;
+    }
+    
+    .mb-3 {
+      margin-bottom: 1rem;
+    }
+    
+    .mb-4 {
+      margin-bottom: 1.5rem;
+    }
+    
+    .mt-4 {
+      margin-top: 1.5rem;
+    }
+    
+    .p-3 {
+      padding: 1rem;
+    }
+    
+    .p-4 {
+      padding: 1.5rem;
+    }
+    
+    .text-muted {
+      color: #718096;
+    }
+    
+    .text-sm {
+      font-size: 0.875rem;
+    }
+    
+    .text-xs {
+      font-size: 0.75rem;
+    }
+    
+    .table-responsive {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: var(--card-border-radius);
+      background: white;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    /* Layout components */
+    .app-wrapper {
+      display: flex;
+      width: 100%;
+      min-height: 100vh;
+    }
+    
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 260px;
+      background: var(--dark);
+      color: white;
+      z-index: 1000;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      transition: all var(--transition-speed) ease;
+    }
+    
+    .sidebar-brand {
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .sidebar-brand h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: white;
+    }
+    
+    .sidebar-brand img {
+      width: 36px;
+      margin-right: 0.75rem;
+    }
+    
+    .sidebar-menu {
+      padding: 1rem 0;
+    }
+    
+    .sidebar-menu-header {
+      padding: 0.75rem 1.5rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+    }
+    
+    .sidebar-menu-item {
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+      border-left: 3px solid transparent;
+    }
+    
+    .sidebar-menu-item i {
+      margin-right: 0.75rem;
+      font-size: 1rem;
+      width: 20px;
+      text-align: center;
+    }
+    
+    .sidebar-menu-item:hover, .sidebar-menu-item.active {
+      color: white;
+      background: rgba(255, 255, 255, 0.08);
+      border-left-color: var(--primary-light);
+    }
+    
+    .main-content {
+      flex: 1;
+      margin-left: 260px;
+      padding: 2rem;
+      transition: all var(--transition-speed) ease;
+    }
+    
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    
+    .search-box {
+      position: relative;
+      width: 280px;
+    }
+    
+    .search-box input {
+      padding: 0.5rem 1rem 0.5rem 2.25rem;
+      border-radius: 0.75rem;
+      border: 1px solid #e2e8f0;
+      width: 100%;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+    
+    .search-box i {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #a0aec0;
+    }
+    
+    .search-box input:focus {
+      outline: none;
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+    
+    .user-dropdown {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--primary-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      margin-right: 0.75rem;
+    }
+    
+    .user-info {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .user-name {
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    
+    .user-role {
+      font-size: 0.75rem;
+      color: #718096;
+    }
+    
+    /* Cards and Tables */
+    .card {
+      border: none;
+      border-radius: var(--card-border-radius);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+      margin-bottom: 2rem;
+      background: white;
+    }
+    
+    .card-header {
+      background: white;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .card-title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #2d3748;
+      display: flex;
+      align-items: center;
+    }
+    
+    .card-title i {
+      margin-right: 0.75rem;
+      font-size: 1.25rem;
+      color: var(--primary);
+    }
+    
+    .card-body {
+      padding: 1.5rem;
+    }
+    
+    .table {
+      width: 100%;
+      margin-bottom: 0;
+    }
+    
+    .table th {
+      padding: 1rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #4a5568;
+      background: #f7fafc;
+      border: none;
+      white-space: nowrap;
+    }
+    
+    .table td {
+      padding: 1rem 1.5rem;
+      vertical-align: middle;
+      border-top: 1px solid #f0f4f8;
+      font-size: 0.875rem;
+    }
+    
+    /* Analytics Specific Styles */
+    .badge {
+      padding: 0.35rem 0.75rem;
+      font-weight: 600;
+      font-size: 0.75rem;
+      border-radius: 0.5rem;
+      display: inline-block;
+    }
+    
+    .bg-success { 
+      background-color: rgba(12, 206, 107, 0.1);
+      color: var(--success);
+    }
+    
+    .bg-warning { 
+      background-color: rgba(255, 158, 0, 0.1);
+      color: var(--warning);
+    }
+    
+    .bg-danger { 
+      background-color: rgba(229, 56, 59, 0.1);
+      color: var(--danger);
+    }
+    
+    .bg-info { 
+      background-color: rgba(76, 201, 240, 0.1);
+      color: var(--info);
+    }
+    
+    .btn {
+      border-radius: 0.5rem;
+      font-weight: 500;
+      font-size: 0.875rem;
+      padding: 0.5rem 1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      gap: 0.25rem;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .btn-sm {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.75rem;
+      border-radius: 0.375rem;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: var(--secondary);
+    }
+    
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #0ab25b;
+    }
+    
+    .btn-outline-primary {
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      background: transparent;
+    }
+    
+    .btn-outline-primary:hover {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .filter-section {
+      background: white;
+      border-radius: var(--card-border-radius);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .filter-item {
+      flex: 1;
+      min-width: 150px;
+    }
+    
+    .filter-label {
+      font-size: 0.75rem;
+      color: #718096;
+      margin-bottom: 0.25rem;
+      font-weight: 500;
+    }
+    
+    .filter-input {
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid #e2e8f0;
+      font-size: 0.875rem;
+    }
+    
+    .filter-input:focus {
+      outline: none;
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .stat-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    
+    .stat-card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #4a5568;
+    }
+    
+    .stat-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+    
+    .stat-card-blue {
+      background: rgba(67, 97, 238, 0.1);
+      color: var(--primary);
+    }
+    
+    .stat-card-green {
+      background: rgba(12, 206, 107, 0.1);
+      color: var(--success);
+    }
+    
+    .stat-card-orange {
+      background: rgba(255, 158, 0, 0.1);
+      color: var(--warning);
+    }
+    
+    .stat-card-red {
+      background: rgba(229, 56, 59, 0.1);
+      color: var(--danger);
+    }
+    
+    .stat-card-content {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+    
+    .stat-card-value {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    
+    .stat-card-label {
+      font-size: 0.875rem;
+      color: #718096;
+      margin-top: 0.25rem;
+    }
+    
+    .stat-card-chart {
+      width: 60px;
+      height: 30px;
+    }
+    
+    .stat-card-footer {
+      margin-top: 1rem;
+      font-size: 0.75rem;
+      color: #718096;
+      display: flex;
+      align-items: center;
+    }
+    
+    .stat-card-change {
+      display: flex;
+      align-items: center;
+      margin-left: 0.5rem;
+    }
+    
+    .stat-card-change-positive {
+      color: var(--success);
+    }
+    
+    .stat-card-change-negative {
+      color: var(--danger);
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .chart-container {
+      position: relative;
+      margin: auto;
+      height: 300px;
+      width: 100%;
+    }
+    
+    .tab-container {
+      margin-bottom: 2rem;
+    }
+    
+    .tab-navigation {
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 1.5rem;
+    }
+    
+    .tab-item {
+      padding: 0.75rem 1.5rem;
+      font-weight: 500;
+      color: #718096;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .tab-item.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    
+    .tab-item:hover:not(.active) {
+      color: #4a5568;
+      border-bottom-color: #e2e8f0;
+    }
+    
+    .analytics-card-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .progress-table .progress-bar {
+      height: 8px;
+      border-radius: 4px;
+      background: #e2e8f0;
+      width: 100%;
+      overflow: hidden;
+    }
+    
+    .progress-table .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+    }
+    
+    .progress-table .progress-blue {
+      background: var(--primary);
+    }
+    
+    .progress-table .progress-green {
+      background: var(--success);
+    }
+    
+    .progress-table .progress-orange {
+      background: var(--warning);
+    }
+    
+    .progress-table .progress-red {
+      background: var(--danger);
+    }
+    
+    .country-flag {
+      width: 24px;
+      height: 16px;
+      margin-right: 0.5rem;
+      border-radius: 2px;
+      object-fit: cover;
+    }
+    
+    @media (max-width: 991.98px) {
+      .sidebar {
+        width: 80px;
+      }
+      
+      .sidebar-brand h3,
+      .sidebar-menu-item span {
+        display: none;
+      }
+      
+      .sidebar-brand {
+        justify-content: center;
+      }
+      
+      .sidebar-brand img {
+        margin-right: 0;
+      }
+      
+      .sidebar-menu-item {
+        justify-content: center;
+        padding: 0.75rem;
+      }
+      
+      .sidebar-menu-item i {
+        margin-right: 0;
+      }
+      
+      .main-content {
+        margin-left: 80px;
+      }
+      
+      .search-box {
+        width: 200px;
+      }
+      
+      .analytics-card-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 767.98px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      
+      .main-content {
+        margin-left: 0;
+      }
+      
+      .sidebar.show {
+        transform: translateX(0);
+      }
+      
+      .mobile-toggle {
+        display: block;
+      }
+      
+      .topbar {
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+      
+      .search-box {
+        width: 100%;
+        order: 3;
+      }
+      
+      .filter-row {
+        flex-direction: column;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 575.98px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-brand">
+        <img src="https://via.placeholder.com/36x36" alt="Logo">
+        <h3>Horizon Pathways</h3>
+      </div>
+      
+      <div class="sidebar-menu">
+        <div class="sidebar-menu-header">Main</div>
+        <a href="/case-manager.html" class="sidebar-menu-item">
+          <i class="fas fa-th-large"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="/case-manager/case-details.html" class="sidebar-menu-item">
+          <i class="fas fa-briefcase"></i>
+          <span>Case Management</span>
+        </a>
+        <a href="/case-manager/documents.html" class="sidebar-menu-item">
+          <i class="fas fa-file-alt"></i>
+          <span>Documents</span>
+        </a>
+        <a href="/case-manager/applicants.html" class="sidebar-menu-item">
+          <i class="fas fa-users"></i>
+          <span>Applicants</span>
+        </a>
+        
+        <div class="sidebar-menu-header">Reports</div>
+        <a href="/case-manager/analytics.html" class="sidebar-menu-item active">
+          <i class="fas fa-chart-bar"></i>
+          <span>Analytics</span>
+        </a>
+        <a href="#" class="sidebar-menu-item">
+          <i class="fas fa-history"></i>
+          <span>History</span>
+        </a>
+        
+        <div class="sidebar-menu-header">Settings</div>
+        <a href="#" class="sidebar-menu-item">
+          <i class="fas fa-cog"></i>
+          <span>General</span>
+        </a>
+        <a href="#" class="sidebar-menu-item">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Logout</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="topbar">
+        <button class="btn btn-sm btn-light d-md-none mobile-toggle">
+          <i class="fas fa-bars"></i>
+        </button>
+        
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search reports...">
+        </div>
+        
+        <div class="user-dropdown">
+          <div class="user-avatar">CM</div>
+          <div class="user-info">
+            <div class="user-name">Case Manager</div>
+            <div class="user-role">Admin</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Page Header -->
+      <div class="d-flex justify-between mb-4">
+        <h1 style="font-size: 1.75rem; font-weight: 600;">Analytics Dashboard</h1>
+        <div>
+          <button class="btn btn-outline-primary me-2">
+            <i class="fas fa-file-export me-2"></i> Export
+          </button>
+          <button class="btn btn-primary">
+            <i class="fas fa-print me-2"></i> Print Report
+          </button>
+        </div>
+      </div>
+      
+      <!-- Filter Section -->
+      <div class="filter-section mb-4">
+        <div class="filter-row">
+          <div class="filter-item">
+            <div class="filter-label">Date Range</div>
+            <select class="filter-input">
+              <option value="7d">Last 7 Days</option>
+              <option value="1m" selected>Last 30 Days</option>
+              <option value="3m">Last 3 Months</option>
+              <option value="6m">Last 6 Months</option>
+              <option value="1y">Last Year</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+          
+          <div class="filter-item">
+            <div class="filter-label">Application Type</div>
+            <select class="filter-input">
+              <option value="">All Types</option>
+              <option value="tourist">Tourist Visa</option>
+              <option value="student">Student Visa</option>
+              <option value="work">Work Visa</option>
+              <option value="business">Business Visa</option>
+            </select>
+          </div>
+          
+          <div class="filter-item">
+            <div class="filter-label">Destination Country</div>
+            <select class="filter-input">
+              <option value="">All Countries</option>
+              <option value="us">United States</option>
+              <option value="ca">Canada</option>
+              <option value="uk">United Kingdom</option>
+              <option value="au">Australia</option>
+            </select>
+          </div>
+          
+          <div class="filter-item">
+            <div class="filter-label">Status</div>
+            <select class="filter-input">
+              <option value="">All Status</option>
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+        
+        <div>
+          <button class="btn btn-primary btn-sm">
+            <i class="fas fa-filter me-2"></i> Apply Filters
+          </button>
+          <button class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-redo me-2"></i> Reset
+          </button>
+        </div>
+      </div>
+      
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <!-- Stat Card 1 -->
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <div class="stat-card-title">Total Applications</div>
+            <div class="stat-card-icon stat-card-blue">
+              <i class="fas fa-file-alt"></i>
+            </div>
+          </div>
+          <div class="stat-card-content">
+            <div>
+              <div class="stat-card-value">2,547</div>
+              <div class="stat-card-label">Last 30 days</div>
+            </div>
+            <canvas id="totalAppsChart" class="stat-card-chart"></canvas>
+          </div>
+          <div class="stat-card-footer">
+            vs previous period
+            <div class="stat-card-change stat-card-change-positive">
+              <i class="fas fa-arrow-up me-1"></i> 12.5%
+            </div>
+          </div>
+        </div>
+        
+        <!-- Stat Card 2 -->
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <div class="stat-card-title">Approval Rate</div>
+            <div class="stat-card-icon stat-card-green">
+              <i class="fas fa-check-circle"></i>
+            </div>
+          </div>
+          <div class="stat-card-content">
+            <div>
+              <div class="stat-card-value">78.3%</div>
+              <div class="stat-card-label">Last 30 days</div>
+            </div>
+            <canvas id="approvalRateChart" class="stat-card-chart"></canvas>
+          </div>
+          <div class="stat-card-footer">
+            vs previous period
+            <div class="stat-card-change stat-card-change-positive">
+              <i class="fas fa-arrow-up me-1"></i> 3.2%
+            </div>
+          </div>
+        </div>
+        
+        <!-- Stat Card 3 -->
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <div class="stat-card-title">Processing Time</div>
+            <div class="stat-card-icon stat-card-orange">
+              <i class="fas fa-clock"></i>
+            </div>
+          </div>
+          <div class="stat-card-content">
+            <div>
+              <div class="stat-card-value">14.2</div>
+              <div class="stat-card-label">Avg. days</div>
+            </div>
+            <canvas id="processingTimeChart" class="stat-card-chart"></canvas>
+          </div>
+          <div class="stat-card-footer">
+            vs previous period
+            <div class="stat-card-change stat-card-change-negative">
+              <i class="fas fa-arrow-up me-1"></i> 2.5%
+            </div>
+          </div>
+        </div>
+        
+        <!-- Stat Card 4 -->
+        <div class="stat-card">
+          <div class="stat-card-header">
+            <div class="stat-card-title">Revenue</div>
+            <div class="stat-card-icon stat-card-blue">
+              <i class="fas fa-dollar-sign"></i>
+            </div>
+          </div>
+          <div class="stat-card-content">
+            <div>
+              <div class="stat-card-value">$84.5k</div>
+              <div class="stat-card-label">Last 30 days</div>
+            </div>
+            <canvas id="revenueChart" class="stat-card-chart"></canvas>
+          </div>
+          <div class="stat-card-footer">
+            vs previous period
+            <div class="stat-card-change stat-card-change-positive">
+              <i class="fas fa-arrow-up me-1"></i> 8.7%
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Tab Navigation -->
+      <div class="tab-container">
+        <div class="tab-navigation">
+          <div class="tab-item active">Overview</div>
+          <div class="tab-item">Applications</div>
+          <div class="tab-item">Processing</div>
+          <div class="tab-item">Revenue</div>
+        </div>
+      </div>
+      
+      <!-- Charts Row -->
+      <div class="analytics-card-row">
+        <!-- Applications Chart -->
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title"><i class="fas fa-chart-line"></i> Application Trends</h5>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-primary active">Month</button>
+              <button class="btn btn-sm btn-outline-primary">Quarter</button>
+              <button class="btn btn-sm btn-outline-primary">Year</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="applicationsChart"></canvas>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Visa Types Chart -->
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title"><i class="fas fa-chart-pie"></i> Application Types</h5>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-primary active">Month</button>
+              <button class="btn btn-sm btn-outline-primary">Quarter</button>
+              <button class="btn btn-sm btn-outline-primary">Year</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="visaTypesChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="analytics-card-row">
+        <!-- Top Destination Countries -->
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title"><i class="fas fa-globe-americas"></i> Top Destination Countries</h5>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table progress-table">
+                <thead>
+                  <tr>
+                    <th>Country</th>
+                    <th>Applications</th>
+                    <th>% of Total</th>
+                    <th>Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <img src="https://flagcdn.com/w40/us.png" alt="USA" class="country-flag">
+                        <span>United States</span>
+                      </div>
+                    </td>
+                    <td>758</td>
+                    <td>
+                      <div class="d-flex align-items-center justify-between">
+                        <span>29.8%</span>
+                        <div class="progress-bar" style="width: 100px;">
+                          <div class="progress-fill progress-blue" style="width: 29.8%;"></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stat-card-change stat-card-change-positive">
+                        <i class="fas fa-arrow-up me-1"></i> 4.5%
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <img src="https://flagcdn.com/w40/ca.png" alt="Canada" class="country-flag">
+                        <span>Canada</span>
+                      </div>
+                    </td>
+                    <td>543</td>
+                    <td>
+                      <div class="d-flex align-items-center justify-between">
+                        <span>21.3%</span>
+                        <div class="progress-bar" style="width: 100px;">
+                          <div class="progress-fill progress-green" style="width: 21.3%;"></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stat-card-change stat-card-change-positive">
+                        <i class="fas fa-arrow-up me-1"></i> 2.8%
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <img src="https://flagcdn.com/w40/gb.png" alt="UK" class="country-flag">
+                        <span>United Kingdom</span>
+                      </div>
+                    </td>
+                    <td>421</td>
+                    <td>
+                      <div class="d-flex align-items-center justify-between">
+                        <span>16.5%</span>
+                        <div class="progress-bar" style="width: 100px;">
+                          <div class="progress-fill progress-orange" style="width: 16.5%;"></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stat-card-change stat-card-change-negative">
+                        <i class="fas fa-arrow-down me-1"></i> 1.2%
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <img src="https://flagcdn.com/w40/au.png" alt="Australia" class="country-flag">
+                        <span>Australia</span>
+                      </div>
+                    </td>
+                    <td>385</td>
+                    <td>
+                      <div class="d-flex align-items-center justify-between">
+                        <span>15.1%</span>
+                        <div class="progress-bar" style="width: 100px;">
+                          <div class="progress-fill progress-blue" style="width: 15.1%;"></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stat-card-change stat-card-change-positive">
+                        <i class="fas fa-arrow-up me-1"></i> 5.2%
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <img src="https://flagcdn.com/w40/de.png" alt="Germany" class="country-flag">
+                        <span>Germany</span>
+                      </div>
+                    </td>
+                    <td>215</td>
+                    <td>
+                      <div class="d-flex align-items-center justify-between">
+                        <span>8.4%</span>
+                        <div class="progress-bar" style="width: 100px;">
+                          <div class="progress-fill progress-green" style="width: 8.4%;"></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stat-card-change stat-card-change-positive">
+                        <i class="fas fa-arrow-up me-1"></i> 3.1%
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Processing Time by Visa Type -->
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title"><i class="fas fa-hourglass-half"></i> Processing Time by Type</h5>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="processingTimeByTypeChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Recent Performance Metrics -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title"><i class="fas fa-chart-bar"></i> Monthly Performance</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Applications</th>
+                  <th>Approved</th>
+                  <th>Rejected</th>
+                  <th>Avg. Processing Time</th>
+                  <th>Revenue</th>
+                  <th>Approval Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>September 2025</td>
+                  <td>845</td>
+                  <td>652</td>
+                  <td>126</td>
+                  <td>13.8 days</td>
+                  <td>$28,350</td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <span class="me-2">77.2%</span>
+                      <span class="badge bg-success">+2.1%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>August 2025</td>
+                  <td>912</td>
+                  <td>684</td>
+                  <td>157</td>
+                  <td>14.2 days</td>
+                  <td>$31,920</td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <span class="me-2">75.0%</span>
+                      <span class="badge bg-success">+0.8%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>July 2025</td>
+                  <td>790</td>
+                  <td>586</td>
+                  <td>143</td>
+                  <td>15.5 days</td>
+                  <td>$24,190</td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <span class="me-2">74.2%</span>
+                      <span class="badge bg-danger">-1.3%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>June 2025</td>
+                  <td>682</td>
+                  <td>514</td>
+                  <td>112</td>
+                  <td>16.2 days</td>
+                  <td>$21,680</td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <span class="me-2">75.4%</span>
+                      <span class="badge bg-success">+2.7%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>May 2025</td>
+                  <td>624</td>
+                  <td>453</td>
+                  <td>121</td>
+                  <td>17.8 days</td>
+                  <td>$19,360</td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <span class="me-2">72.6%</span>
+                      <span class="badge bg-warning">-0.2%</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Scripts -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Mobile menu toggle
+      const mobileToggle = document.querySelector('.mobile-toggle');
+      const sidebar = document.querySelector('.sidebar');
+      
+      if (mobileToggle) {
+        mobileToggle.addEventListener('click', function() {
+          sidebar.classList.toggle('show');
+        });
+      }
+      
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', function(event) {
+        if (window.innerWidth < 768 && 
+            !event.target.closest('.sidebar') && 
+            !event.target.closest('.mobile-toggle') && 
+            sidebar.classList.contains('show')) {
+          sidebar.classList.remove('show');
+        }
+      });
+      
+      // Tab navigation
+      const tabItems = document.querySelectorAll('.tab-item');
+      tabItems.forEach(item => {
+        item.addEventListener('click', function() {
+          tabItems.forEach(tab => tab.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+      
+      // Mini Charts
+      const createMiniChart = (ctx, color, data) => {
+        return new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: Array(data.length).fill(''),
+            datasets: [{
+              data: data,
+              borderColor: color,
+              borderWidth: 2,
+              pointRadius: 0,
+              tension: 0.4,
+              fill: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                enabled: false
+              }
+            },
+            scales: {
+              x: {
+                display: false
+              },
+              y: {
+                display: false
+              }
+            },
+            animation: false,
+            elements: {
+              line: {
+                borderWidth: 1.5
+              }
+            }
+          }
+        });
+      };
+      
+      // Total Applications Mini Chart
+      const totalAppsCtx = document.getElementById('totalAppsChart').getContext('2d');
+      createMiniChart(totalAppsCtx, '#4361ee', [420, 380, 450, 520, 480, 490, 540, 570]);
+      
+      // Approval Rate Mini Chart
+      const approvalRateCtx = document.getElementById('approvalRateChart').getContext('2d');
+      createMiniChart(approvalRateCtx, '#0cce6b', [72, 74, 71, 75, 76, 77, 78, 79]);
+      
+      // Processing Time Mini Chart
+      const processingTimeCtx = document.getElementById('processingTimeChart').getContext('2d');
+      createMiniChart(processingTimeCtx, '#ff9e00', [16, 15.5, 15, 14.8, 14.2, 14, 14.2, 14.5]);
+      
+      // Revenue Mini Chart
+      const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+      createMiniChart(revenueCtx, '#4361ee', [18, 17, 19, 20, 22, 21, 23, 25]);
+      
+      // Applications Chart
+      const applicationsCtx = document.getElementById('applicationsChart').getContext('2d');
+      new Chart(applicationsCtx, {
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+          datasets: [
+            {
+              label: 'Applications',
+              data: [430, 520, 480, 520, 624, 682, 790, 912, 845],
+              borderColor: '#4361ee',
+              backgroundColor: 'rgba(67, 97, 238, 0.1)',
+              tension: 0.3,
+              fill: true
+            },
+            {
+              label: 'Approvals',
+              data: [320, 380, 350, 390, 453, 514, 586, 684, 652],
+              borderColor: '#0cce6b',
+              backgroundColor: 'rgba(12, 206, 107, 0.1)',
+              tension: 0.3,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              align: 'end'
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                drawBorder: false
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+      
+      // Visa Types Chart
+      const visaTypesCtx = document.getElementById('visaTypesChart').getContext('2d');
+      new Chart(visaTypesCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Tourist', 'Student', 'Work', 'Business', 'Family'],
+          datasets: [{
+            data: [35, 25, 20, 15, 5],
+            backgroundColor: [
+              '#4361ee',
+              '#0cce6b',
+              '#ff9e00',
+              '#4cc9f0',
+              '#e5383b'
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              align: 'center'
+            }
+          },
+          cutout: '65%'
+        }
+      });
+      
+      // Processing Time by Type Chart
+      const processingTimeByTypeCtx = document.getElementById('processingTimeByTypeChart').getContext('2d');
+      new Chart(processingTimeByTypeCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Tourist', 'Student', 'Work', 'Business', 'Family'],
+          datasets: [{
+            label: 'Average Processing Time (Days)',
+            data: [12.5, 18.2, 15.3, 10.8, 14.7],
+            backgroundColor: [
+              'rgba(67, 97, 238, 0.8)',
+              'rgba(12, 206, 107, 0.8)',
+              'rgba(255, 158, 0, 0.8)',
+              'rgba(76, 201, 240, 0.8)',
+              'rgba(229, 56, 59, 0.8)'
+            ],
+            borderWidth: 0,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                drawBorder: false
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

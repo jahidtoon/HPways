@@ -187,6 +187,10 @@ const quiz_spec = @json($quiz_spec);
 document.body.classList.add('quiz-bg');
 
 const nodes = new Map(quiz_spec.nodes.map(n => [n.id, n]));
+const TERMINALS = new Set(quiz_spec.meta.terminals || []);
+const ACTIONABLE = new Set(quiz_spec.meta.actionable || []);
+const T2V = quiz_spec.meta.terminalToVisa || {};
+const TDETAILS = quiz_spec.meta.terminalDetails || {};
 const LS_KEY = "eligibilityQuiz.v1";
 
 const state = {
@@ -282,32 +286,17 @@ function render(){
     `;
     if(actions) actions.style.display = 'none';
     toggleNav(false);
-    // Enhanced mapping that considers sub-flows for Option B
-    const rootAns = state.answers['Q1'];
-    let pair = null;
-    
-    if (rootAns === 'A') pair = ['I90','FORM_I90'];
-    else if (rootAns === 'B') {
-      // Check if they chose fiancé or relative
-      const bringWho = state.answers['N3_Q1'];
-      if (bringWho === 'fiance') {
-        pair = ['K1','K1_ELIGIBLE'];
-      } else {
-        pair = ['I130','RELATIVE_I130'];
-      }
-    }
-    else if (rootAns === 'C') pair = ['I485','I485_ONLY'];
-    else if (rootAns === 'D') pair = ['I751','I751'];
-    else if (rootAns === 'E') pair = ['DACA','DACA_FORMS'];
-    else if (rootAns === 'F') pair = ['N400','N400'];
+    // Use terminal stored in state to build pricing link
     const pricingLink = document.getElementById('pricingCta');
-    if (pricingLink && pair){
-      const [visaType, terminalCode] = pair;
+    const terminalCode = state.terminal || node._terminalCode || null;
+    if (pricingLink && terminalCode){
+      const visaType = T2V[terminalCode] || '';
       try {
         const url = new URL(pricingLink.getAttribute('href'), window.location.origin);
-        url.searchParams.set('vt', visaType);
+        if (visaType) url.searchParams.set('vt', visaType);
         url.searchParams.set('t', terminalCode);
         pricingLink.setAttribute('href', url.pathname + url.search);
+        // Ensure backend session knows terminal for downstream flows
         fetch('/quiz/tag-terminal', {method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body:JSON.stringify({terminal: terminalCode})}).catch(()=>{});
       } catch(e) {}
     }
@@ -317,7 +306,7 @@ function render(){
   if(node && node._terminal === "ineligible"){
     qa.innerHTML = `
       <div class="error" role="alert" aria-live="polite">
-        <strong>Not Eligible:</strong> ${node._message}
+        <strong>Not Eligible:</strong> ${node._message || 'Path not eligible at this time.'}
       </div>
       <div class="split" style="margin-top:12px">
         <button class="btn" onclick="reset()">Restart</button>
@@ -396,7 +385,7 @@ function next(){
   // eligible terminal
   if(option.eligible){
     const tid = `_OK_${node.id}`;
-    nodes.set(tid, {_terminal:"eligible"});
+    nodes.set(tid, {_terminal:"eligible", _terminalCode: state.terminal || null});
     state.current = tid; save(); render(); return;
   }
   // ineligible terminal
@@ -407,6 +396,22 @@ function next(){
   }
   // regular next
   if(option.next){
+    // If next points to a terminal code, branch accordingly
+    if (typeof option.next === 'string' && TERMINALS.has(option.next)){
+      const code = option.next;
+      state.terminal = code;
+      const actionable = ACTIONABLE.has(code);
+      const detail = TDETAILS[code] || {};
+      const tid = `_T_${code}`;
+      nodes.set(tid, {
+        _terminal: actionable ? 'eligible' : 'ineligible',
+        _terminalCode: code,
+        _message: actionable ? (detail.message || '') : (detail.message || 'Not eligible for this path.'),
+      });
+      state.current = tid;
+      save(); render(); return;
+    }
+    // Otherwise, follow to the next node id
     state.current = option.next; save(); render(); return;
   }
 

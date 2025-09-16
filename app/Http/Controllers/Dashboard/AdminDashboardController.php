@@ -735,7 +735,14 @@ class AdminDashboardController extends Controller
     public function quizzesIndex()
     {
         $quizNodes = QuizNode::orderBy('node_id')->paginate(15);
-        return view('dashboard.admin.quizzes.index', compact('quizNodes'));
+        // Full list for flowchart canvas and accurate stats
+        $allQuizNodes = QuizNode::orderBy('node_id')->get();
+        $statsTotal = $allQuizNodes->count();
+        $statsSingle = $allQuizNodes->where('type', 'single')->count();
+        $statsMulti = $allQuizNodes->where('type', 'multi')->count();
+        $statsOptions = $allQuizNodes->sum(function ($node) { return is_array($node->options) ? count($node->options) : 0; });
+
+        return view('dashboard.admin.quizzes.index', compact('quizNodes','allQuizNodes','statsTotal','statsSingle','statsMulti','statsOptions'));
     }
 
     public function quizzesCreate()

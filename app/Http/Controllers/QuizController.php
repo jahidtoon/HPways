@@ -637,41 +637,17 @@ class QuizController extends Controller
      */
     public function newQuiz()
     {
-        $nodes = \App\Models\QuizNode::all()->map(function ($node) {
-            return [
-                'id' => $node->node_id,
-                'title' => $node->title,
-                'question' => $node->question,
-                'type' => $node->type,
-                'options' => $node->options,
-            ];
-        })->toArray();
-
-        // Terminal metadata for the frontend to align with admin flow
-        $terminals = collect($this->terminals());
-        $terminalDetails = $terminals->keyBy('code')->map(function($t){
-            return [
-                'title' => $t['title'] ?? $t['code'],
-                'message' => $t['message'] ?? '',
-                'link' => $t['link'] ?? null,
-            ];
-        })->toArray();
-
-        $quiz_spec = [
-            'meta' => [
-                'version' => '1.0',
-                'brand' => 'Horizon Pathways',
-                'root' => 'Q1',
-                'routes' => ['pricingUrl' => '/pricing', 'loginUrl' => '/login'],
-                'terminals' => config('quiz.terminals', []),
-                'actionable' => config('quiz.actionable_terminals', []),
-                'terminalToVisa' => config('quiz.terminal_to_visa_type', []),
-                'terminalDetails' => $terminalDetails,
-            ],
-            'nodes' => $nodes
-        ];
-
+        $quiz_spec = app(\App\Services\QuizGraphService::class)->buildSpec();
         return view('eligibility-quiz-new', compact('quiz_spec'));
+    }
+
+    /**
+     * JSON spec for public & admin consumers to avoid drift.
+     */
+    public function specJson()
+    {
+        $quiz_spec = app(\App\Services\QuizGraphService::class)->buildSpec();
+        return response()->json($quiz_spec);
     }
 
     /**

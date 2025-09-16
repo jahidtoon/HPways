@@ -570,19 +570,19 @@
     <!-- Statistics Overview -->
     <div class="stats-overview">
         <div class="stat-card">
-            <div class="stat-number">{{ $quizNodes->total() }}</div>
+            <div class="stat-number">{{ $statsTotal ?? $quizNodes->total() }}</div>
             <div class="stat-label">Total Nodes</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">{{ $quizNodes->where('type', 'single')->count() }}</div>
+            <div class="stat-number">{{ $statsSingle ?? $quizNodes->where('type', 'single')->count() }}</div>
             <div class="stat-label">Single Choice</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">{{ $quizNodes->where('type', 'multi')->count() }}</div>
+            <div class="stat-number">{{ $statsMulti ?? $quizNodes->where('type', 'multi')->count() }}</div>
             <div class="stat-label">Multi Choice</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">{{ $quizNodes->sum(function($node) { return count($node->options); }) }}</div>
+            <div class="stat-number">{{ $statsOptions ?? $quizNodes->sum(function($node) { return count($node->options); }) }}</div>
             <div class="stat-label">Total Options</div>
         </div>
     </div>
@@ -648,8 +648,9 @@
 
             <!-- Canvas Container -->
             <div class="canvas-container" id="canvas-container">
-                @if($quizNodes->count() > 0)
-                    @foreach($quizNodes as $node)
+                @php($canvasNodes = isset($allQuizNodes) ? $allQuizNodes : $quizNodes)
+                @if($canvasNodes->count() > 0)
+                    @foreach($canvasNodes as $node)
                         <div class="quiz-node" 
                              data-node-id="{{ $node->node_id }}" 
                              style="left: {{ $node->x }}px; top: {{ $node->y }}px;">

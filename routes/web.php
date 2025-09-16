@@ -34,6 +34,8 @@ Route::post('/quiz/advance', [QuizController::class,'advance'])->name('quiz.adva
 Route::get('/quiz/state', [QuizController::class,'state'])->name('quiz.state');
 Route::post('/quiz/reset', [QuizController::class,'reset'])->name('quiz.reset');
 Route::get('/eligibility-quiz', [QuizController::class,'newQuiz'])->name('eligibility.quiz');
+// Shared quiz spec endpoint (single source of truth)
+Route::get('/api/quiz/spec', [QuizController::class,'specJson'])->name('quiz.spec.json');
 Route::post('/quiz/tag-terminal', [QuizController::class,'tagTerminal'])->name('quiz.tagTerminal');
 
 Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');

@@ -57,13 +57,24 @@
                     }
                     console.log('✅ Canvas found, initializing...');
                     
-                    // Load and display nodes beautifully
-                    fetch('/admin/quizzes/get-nodes')
+                    // Load and display nodes from unified quiz spec (single source of truth)
+                    fetch('/api/quiz/spec')
                         .then(r => r.json())
-                        .then(data => {
-                            console.log('📊 Loaded ' + data.nodes.length + ' quiz nodes');
-                            allNodes = data.nodes;
-                            createBeautifulFlowchart(canvas, data.nodes);
+                        .then(spec => {
+                            const rawNodes = Array.isArray(spec.nodes) ? spec.nodes : [];
+                            console.log('📊 Loaded ' + rawNodes.length + ' quiz nodes from unified spec');
+                            // Adapt nodes to legacy shape expected by builder: node_id instead of id
+                            const adapted = rawNodes.map(n => ({
+                                node_id: n.id,
+                                title: n.title,
+                                question: n.question,
+                                type: n.type,
+                                options: n.options,
+                                x: n.x || 100,
+                                y: n.y || 100,
+                            }));
+                            allNodes = adapted;
+                            createBeautifulFlowchart(canvas, adapted);
                             setTimeout(() => { autoLayoutNodes(); fitAllNodesToScreen(); }, 400);
                         })
                         .catch(err => {

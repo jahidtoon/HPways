@@ -819,14 +819,48 @@ class AdminDashboardController extends Controller
     public function saveQuizFlowchart(Request $request)
     {
         $nodes = $request->input('nodes', []);
-        
+
         foreach ($nodes as $nodeData) {
-            if (isset($nodeData['id'])) {
-                QuizNode::where('node_id', $nodeData['id'])->update([
-                    'x' => $nodeData['x'] ?? 100,
-                    'y' => $nodeData['y'] ?? 100
-                ]);
+            // Accept either 'id' or 'node_id' from client
+            $nodeId = $nodeData['id'] ?? $nodeData['node_id'] ?? null;
+            if (!$nodeId) { continue; }
+            $model = QuizNode::where('node_id', $nodeId)->first();
+            if (!$model) { continue; }
+
+            // Normalize options if present
+            $incomingOptions = $nodeData['options'] ?? null;
+            $normalizedOptions = null;
+            if (is_array($incomingOptions)) {
+                $normalizedOptions = [];
+                foreach ($incomingOptions as $opt) {
+                    if (!is_array($opt)) { continue; }
+                    $code = $opt['code'] ?? $opt['value'] ?? null;
+                    $label = $opt['label'] ?? '';
+                    $next = $opt['next'] ?? null;
+                    if ($code === null && $label === '' && $next === null) { continue; }
+                    $entry = [
+                        'code' => $code,
+                        'label' => $label,
+                        'next' => $next,
+                    ];
+                    // Preserve legacy flags if provided by UI
+                    if (array_key_exists('eligible', $opt)) { $entry['eligible'] = (bool) $opt['eligible']; }
+                    if (array_key_exists('ineligible', $opt)) { $entry['ineligible'] = $opt['ineligible']; }
+                    $normalizedOptions[] = $entry;
+                }
             }
+
+            // Build update payload; only set keys that are present to avoid unintended nulling
+            $payload = [
+                'x' => $nodeData['x'] ?? $model->x ?? 100,
+                'y' => $nodeData['y'] ?? $model->y ?? 100,
+            ];
+            if (array_key_exists('title', $nodeData)) { $payload['title'] = (string) $nodeData['title']; }
+            if (array_key_exists('question', $nodeData)) { $payload['question'] = (string) $nodeData['question']; }
+            if (array_key_exists('type', $nodeData)) { $payload['type'] = (string) $nodeData['type']; }
+            if ($normalizedOptions !== null) { $payload['options'] = $normalizedOptions; }
+
+            $model->update($payload);
         }
 
         return response()->json(['success' => true, 'message' => 'Flowchart saved successfully!']);

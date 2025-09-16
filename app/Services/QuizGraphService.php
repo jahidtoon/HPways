@@ -13,12 +13,32 @@ class QuizGraphService
     public function buildSpec(): array
     {
         $nodes = QuizNode::all()->map(function ($node) {
+            // Normalize options to ensure consistent keys across UI consumers
+            $normalizedOptions = [];
+            foreach ((array) $node->options as $opt) {
+                if (!is_array($opt)) { continue; }
+                $code = $opt['code'] ?? $opt['value'] ?? null;
+                $label = $opt['label'] ?? '';
+                $next = $opt['next'] ?? null;
+                $entry = [
+                    'code' => $code,
+                    // Provide both keys for backward-compat consumers (builder expects `value`)
+                    'value' => $code,
+                    'label' => $label,
+                    'next' => $next,
+                ];
+                // Preserve any extra flags if present in legacy data
+                if (array_key_exists('eligible', $opt)) { $entry['eligible'] = (bool) $opt['eligible']; }
+                if (array_key_exists('ineligible', $opt)) { $entry['ineligible'] = $opt['ineligible']; }
+                $normalizedOptions[] = $entry;
+            }
+
             return [
                 'id' => $node->node_id,
                 'title' => $node->title,
                 'question' => $node->question,
                 'type' => $node->type,
-                'options' => $node->options,
+                'options' => $normalizedOptions,
                 'x' => $node->x,
                 'y' => $node->y,
             ];

@@ -17,7 +17,7 @@
                     <button id="saveFlowchart" class="btn btn-success btn-sm">
                         <i class="fas fa-save"></i> Save Flowchart
                     </button>
-                    <a href="{{ route('admin.quizzes') }}" class="btn btn-secondary btn-sm">
+                    <a href="{{ route('admin.quizzes.index') }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left"></i> Back to Quiz Management
                     </a>
                 </div>
@@ -228,7 +228,7 @@
                 
                 function getOptionColor(index) {
                     const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1'];
-                    return colors[index % colors.colors.length];
+                    return colors[index % colors.length];
                 }
                 
                 // Global variables for connection mode

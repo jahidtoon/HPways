@@ -773,6 +773,9 @@
             });
         });
     </script>
+    
+    <!-- Page specific scripts: support both section and stack -->
     @yield('scripts')
+    @stack('scripts')
 </body>
 </html>

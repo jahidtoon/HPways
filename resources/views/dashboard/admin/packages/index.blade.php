@@ -32,7 +32,7 @@
     <div class="admin-section-header">
         <h2 class="h4 mb-0">Packages</h2>
         <div class="d-flex gap-2 ms-auto">
-            <a href="{{ route('admin.packages.create') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i> New Package</a>
+            <!-- Package creation disabled -->
         </div>
     </div>
     <form method="GET" class="filter-bar mb-4" id="filterForm">
@@ -56,6 +56,11 @@
             <div class="d-flex align-items-center mb-3" style="gap:.75rem;">
                 <h5 class="mb-0" style="font-weight:700;color:#1e3c72;">{{ $visaType === 'GLOBAL' ? 'Global Packages (All Visa Types)' : 'Visa Type: ' . $visaType }}</h5>
                 <span class="badge bg-light text-dark border">{{ count($categories) }} categories</span>
+                @if($visaType !== 'GLOBAL')
+                    <a href="{{ route('admin.packages.bulk-edit', ['visa_type' => $visaType]) }}" class="btn btn-outline-primary btn-sm ms-2">
+                        <i class="fas fa-edit"></i> Bulk Edit All
+                    </a>
+                @endif
             </div>
             @foreach($categories as $catId => $block)
                 @php($cat = $block['category'])
@@ -101,7 +106,7 @@
                             @else
                                 <div class="missing-card">
                                     <div><strong class="text-capitalize">{{ $tier }}</strong> missing</div>
-                                    <a href="{{ route('admin.packages.create', ['pref_visa_type'=>$visaType==='GLOBAL'?null:$visaType,'pref_code'=>$tier,'pref_category'=>$catId]) }}" class="btn btn-sm btn-outline-primary mt-2">Add</a>
+                                    <button class="btn btn-sm btn-outline-secondary mt-2" disabled>Cannot Add (Disabled)</button>
                                 </div>
                             @endif
                         @endforeach

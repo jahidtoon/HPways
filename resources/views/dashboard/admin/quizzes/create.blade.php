@@ -3,6 +3,22 @@
 @section('title', 'Create Quiz Node')
 @section('page-title', 'Create New Quiz Node')
 
+@php
+function getTerminalPackages($terminalCode) {
+    if (!$terminalCode) return null;
+    
+    $terminalToVisaType = config('quiz.terminal_to_visa_type', []);
+    $visaType = $terminalToVisaType[$terminalCode] ?? null;
+    
+    if (!$visaType) return null;
+    
+    return \App\Models\Package::where('visa_type', $visaType)
+        ->where('active', true)
+        ->orderBy('price_cents')
+        ->get();
+}
+@endphp
+
 @section('styles')
 <style>
     :root {
@@ -431,11 +447,64 @@
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label">Next Node</label>
-                                            <input type="text" 
-                                                   class="form-control" 
-                                                   name="options[{{ $index }}][next]" 
-                                                   value="{{ $option['next'] ?? '' }}"
-                                                   placeholder="Q2, TERMINAL_1">
+                                            <select class="form-control" name="options[{{ $index }}][next]" onchange="togglePackageSelection(this, {{ $index }})">
+                                                <option value="">Select Next (optional)</option>
+                                                @foreach($nextOptions as $nextOption)
+                                                    <option value="{{ $nextOption }}" 
+                                                            {{ ($option['next'] ?? '') === $nextOption ? 'selected' : '' }}>
+                                                        {{ $nextOption }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="package-selection" id="package-selection-{{ $index }}" style="display: none;">
+                                        <div class="col-12">
+                                            <label class="form-label">Available Packages</label>
+                                            <div class="package-options">
+                                                @php
+                                                    $terminalPackages = getTerminalPackages($option['next'] ?? '');
+                                                @endphp
+                                                @if($terminalPackages)
+                                                    @foreach($terminalPackages as $package)
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" 
+                                                                   name="options[{{ $index }}][packages][]" 
+                                                                   value="{{ $package->code }}" 
+                                                                   id="package-{{ $index }}-{{ $package->code }}"
+                                                                   {{ in_array($package->code, $option['packages'] ?? []) ? 'checked' : '' }}>
+                                                            <label class="form-check-label" for="package-{{ $index }}-{{ $package->code }}">
+                                                                {{ $package->name }} - ${{ number_format($package->price_cents / 100, 2) }}
+                                                            </label>
+                                                        </div>
+                                                    @endforeach
+                                                @else
+                                                    <small class="text-muted">No packages available for this terminal</small>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                    </div>
+                                    <div class="row mt-2">
+                                        <div class="col-12">
+                                            <label class="form-label">Available Packages (for end nodes)</label>
+                                            <div id="packages-{{ $index }}" class="packages-container">
+                                                @php
+                                                    $selectedPackages = $option['packages'] ?? [];
+                                                    $availablePackages = \App\Models\Package::where('active', true)->get();
+                                                @endphp
+                                                @foreach($availablePackages as $package)
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="checkbox" 
+                                                               name="options[{{ $index }}][packages][]" 
+                                                               value="{{ $package->id }}"
+                                                               {{ in_array($package->id, $selectedPackages) ? 'checked' : '' }}>
+                                                        <label class="form-check-label">
+                                                            {{ $package->name }} ({{ $package->code }} - ${{ number_format($package->price_cents / 100, 2) }})
+                                                        </label>
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -459,7 +528,20 @@
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Next Node</label>
-                                        <input type="text" class="form-control" name="options[0][next]" placeholder="Q2, TERMINAL_1">
+                                        <select class="form-control" name="options[0][next]" onchange="togglePackageSelection(this, 0)">
+                                            <option value="">Select Next (optional)</option>
+                                            @foreach($nextOptions as $nextOption)
+                                                <option value="{{ $nextOption }}">{{ $nextOption }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="package-selection" id="package-selection-0" style="display: none;">
+                                    <div class="col-12">
+                                        <label class="form-label">Available Packages</label>
+                                        <div class="package-options">
+                                            <small class="text-muted">Select a terminal first to see available packages</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -494,11 +576,18 @@
 @push('scripts')
 <script>
 let optionCounter = {{ old('options') ? count(old('options')) : 1 }};
+const nextOptions = @json($nextOptions);
 
 function addOption() {
     const optionsList = document.getElementById('options-list');
     const newOption = document.createElement('div');
     newOption.className = 'option-item';
+    
+    let nextOptionsHtml = '<option value="">Select Next (optional)</option>';
+    nextOptions.forEach(option => {
+        nextOptionsHtml += `<option value="${option}">${option}</option>`;
+    });
+    
     newOption.innerHTML = `
         <div class="option-header">
             <span class="option-badge">Option ${optionCounter + 1}</span>
@@ -517,7 +606,29 @@ function addOption() {
             </div>
             <div class="col-md-4">
                 <label class="form-label">Next Node</label>
-                <input type="text" class="form-control" name="options[${optionCounter}][next]" placeholder="Q2, TERMINAL_1">
+                <select class="form-control" name="options[${optionCounter}][next]">
+                    ${nextOptionsHtml}
+                </select>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-12">
+                <label class="form-label">Available Packages (for end nodes)</label>
+                <div id="packages-${optionCounter}" class="packages-container">
+                    @php
+                        $availablePackages = \App\Models\Package::where('active', true)->get();
+                    @endphp
+                    @foreach($availablePackages as $package)
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" 
+                                   name="options[${optionCounter}][packages][]" 
+                                   value="{{ $package->id }}">
+                            <label class="form-check-label">
+                                {{ $package->name }} ({{ $package->code }} - ${{ number_format($package->price_cents / 100, 2) }})
+                            </label>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </div>
     `;
@@ -549,6 +660,69 @@ function updateOptionNumbers() {
             }
         });
     });
+}
+
+function togglePackageSelection(selectElement, optionIndex) {
+    const selectedValue = selectElement.value;
+    const packageContainer = document.getElementById(`package-selection-${optionIndex}`);
+    
+    if (selectedValue && isActionableTerminal(selectedValue)) {
+        // Show package selection
+        packageContainer.style.display = 'block';
+        loadPackagesForTerminal(selectedValue, optionIndex);
+    } else {
+        // Hide package selection
+        packageContainer.style.display = 'none';
+    }
+}
+
+function isActionableTerminal(terminalCode) {
+    const actionableTerminals = @json(config('quiz.actionable_terminals', []));
+    return actionableTerminals.includes(terminalCode);
+}
+
+function loadPackagesForTerminal(terminalCode, optionIndex) {
+    const packageContainer = document.querySelector(`#package-selection-${optionIndex} .package-options`);
+    
+    // Get visa type from terminal
+    const terminalToVisaType = @json(config('quiz.terminal_to_visa_type', []));
+    const visaType = terminalToVisaType[terminalCode];
+    
+    if (!visaType) {
+        packageContainer.innerHTML = '<small class="text-muted">No packages available for this terminal</small>';
+        return;
+    }
+    
+    // Fetch packages for this visa type
+    fetch(`/admin/api/packages?visa_type=${visaType}`)
+        .then(response => response.json())
+        .then(packages => {
+            if (packages.length === 0) {
+                packageContainer.innerHTML = '<small class="text-muted">No packages available for this terminal</small>';
+                return;
+            }
+            
+            let html = '';
+            packages.forEach(package => {
+                const checked = package.code === 'basic' ? 'checked' : ''; // Default to basic package
+                html += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               name="options[${optionIndex}][packages][]" 
+                               value="${package.code}" 
+                               id="package-${optionIndex}-${package.code}" ${checked}>
+                        <label class="form-check-label" for="package-${optionIndex}-${package.code}">
+                            ${package.name} - $${(package.price_cents / 100).toFixed(2)}
+                        </label>
+                    </div>
+                `;
+            });
+            packageContainer.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading packages:', error);
+            packageContainer.innerHTML = '<small class="text-danger">Error loading packages</small>';
+        });
 }
 </script>
 @endpush

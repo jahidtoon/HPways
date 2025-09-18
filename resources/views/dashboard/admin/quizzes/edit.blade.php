@@ -3,6 +3,22 @@
 @section('title', 'Edit Quiz Node')
 @section('page-title', 'Edit Quiz Node')
 
+@php
+function getTerminalPackages($terminalCode) {
+    if (!$terminalCode) return null;
+    
+    $terminalToVisaType = config('quiz.terminal_to_visa_type', []);
+    $visaType = $terminalToVisaType[$terminalCode] ?? null;
+    
+    if (!$visaType) return null;
+    
+    return \App\Models\Package::where('visa_type', $visaType)
+        ->where('active', true)
+        ->orderBy('price_cents')
+        ->get();
+}
+@endphp
+
 @section('content')
 <div class="container-fluid">
     <div class="row">
@@ -106,13 +122,50 @@
                                                        placeholder="Option Label" value="{{ $option['label'] ?? '' }}">
                                             </div>
                                             <div class="col-md-3">
-                                                <input type="text" class="form-control" name="options[{{ $index }}][next]" 
-                                                       placeholder="Next Node (optional)" value="{{ $option['next'] ?? '' }}">
+                                                <select class="form-control @error('options.' . $index . '.next') is-invalid @enderror" 
+                                                        name="options[{{ $index }}][next]" onchange="togglePackageSelection(this, {{ $index }})">
+                                                    <option value="">Select Next (optional)</option>
+                                                    @foreach($nextOptions as $nextOption)
+                                                        <option value="{{ $nextOption }}" 
+                                                                {{ ($option['next'] ?? '') === $nextOption ? 'selected' : '' }}>
+                                                            {{ $nextOption }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                @error('options.' . $index . '.next')
+                                                    <div class="invalid-feedback">{{ $message }}</div>
+                                                @enderror
                                             </div>
                                             <div class="col-md-1">
                                                 <button type="button" class="btn btn-outline-danger btn-sm remove-option">
                                                     <i class="fas fa-times"></i>
                                                 </button>
+                                            </div>
+                                        </div>
+                                        <div class="package-selection" id="package-selection-{{ $index }}" style="display: {{ ($option['next'] ?? '') && getTerminalPackages($option['next']) ? 'block' : 'none' }};">
+                                            <div class="col-12">
+                                                <label class="form-label">Available Packages</label>
+                                                <div class="package-options">
+                                                    @php
+                                                        $terminalPackages = getTerminalPackages($option['next'] ?? '');
+                                                    @endphp
+                                                    @if($terminalPackages)
+                                                        @foreach($terminalPackages as $package)
+                                                            <div class="form-check">
+                                                                <input class="form-check-input" type="checkbox" 
+                                                                       name="options[{{ $index }}][packages][]" 
+                                                                       value="{{ $package->code }}" 
+                                                                       id="package-{{ $index }}-{{ $package->code }}"
+                                                                       {{ in_array($package->code, $option['packages'] ?? []) ? 'checked' : '' }}>
+                                                                <label class="form-check-label" for="package-{{ $index }}-{{ $package->code }}">
+                                                                    {{ $package->name }} - ${{ number_format($package->price_cents / 100, 2) }}
+                                                                </label>
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <small class="text-muted">No packages available for this terminal</small>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -143,11 +196,18 @@
 @push('scripts')
 <script>
 let optionIndex = {{ count(old('options', $quizNode->options)) }};
+const nextOptions = @json($nextOptions);
 
 document.getElementById('add-option').addEventListener('click', function() {
     const container = document.getElementById('options-container');
     const newOption = document.createElement('div');
     newOption.className = 'option-row mb-2';
+    
+    let nextOptionsHtml = '<option value="">Select Next (optional)</option>';
+    nextOptions.forEach(option => {
+        nextOptionsHtml += `<option value="${option}">${option}</option>`;
+    });
+    
     newOption.innerHTML = `
         <div class="row">
             <div class="col-md-3">
@@ -157,12 +217,22 @@ document.getElementById('add-option').addEventListener('click', function() {
                 <input type="text" class="form-control" name="options[${optionIndex}][label]" placeholder="Option Label">
             </div>
             <div class="col-md-3">
-                <input type="text" class="form-control" name="options[${optionIndex}][next]" placeholder="Next Node (optional)">
+                <select class="form-control" name="options[${optionIndex}][next]" onchange="togglePackageSelection(this, ${optionIndex})">
+                    ${nextOptionsHtml}
+                </select>
             </div>
             <div class="col-md-1">
                 <button type="button" class="btn btn-outline-danger btn-sm remove-option">
                     <i class="fas fa-times"></i>
                 </button>
+            </div>
+        </div>
+        <div class="package-selection" id="package-selection-${optionIndex}" style="display: none;">
+            <div class="col-12">
+                <label class="form-label">Available Packages</label>
+                <div class="package-options">
+                    <small class="text-muted">Select a terminal first to see available packages</small>
+                </div>
             </div>
         </div>
     `;
@@ -180,5 +250,68 @@ document.addEventListener('click', function(e) {
         }
     }
 });
+
+function togglePackageSelection(selectElement, optionIndex) {
+    const selectedValue = selectElement.value;
+    const packageContainer = document.getElementById(`package-selection-${optionIndex}`);
+    
+    if (selectedValue && isActionableTerminal(selectedValue)) {
+        // Show package selection
+        packageContainer.style.display = 'block';
+        loadPackagesForTerminal(selectedValue, optionIndex);
+    } else {
+        // Hide package selection
+        packageContainer.style.display = 'none';
+    }
+}
+
+function isActionableTerminal(terminalCode) {
+    const actionableTerminals = @json(config('quiz.actionable_terminals', []));
+    return actionableTerminals.includes(terminalCode);
+}
+
+function loadPackagesForTerminal(terminalCode, optionIndex) {
+    const packageContainer = document.querySelector(`#package-selection-${optionIndex} .package-options`);
+    
+    // Get visa type from terminal
+    const terminalToVisaType = @json(config('quiz.terminal_to_visa_type', []));
+    const visaType = terminalToVisaType[terminalCode];
+    
+    if (!visaType) {
+        packageContainer.innerHTML = '<small class="text-muted">No packages available for this terminal</small>';
+        return;
+    }
+    
+    // Fetch packages for this visa type
+    fetch(`/admin/api/packages?visa_type=${visaType}`)
+        .then(response => response.json())
+        .then(packages => {
+            if (packages.length === 0) {
+                packageContainer.innerHTML = '<small class="text-muted">No packages available for this terminal</small>';
+                return;
+            }
+            
+            let html = '';
+            packages.forEach(package => {
+                const checked = package.code === 'basic' ? 'checked' : ''; // Default to basic package
+                html += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               name="options[${optionIndex}][packages][]" 
+                               value="${package.code}" 
+                               id="package-${optionIndex}-${package.code}" ${checked}>
+                        <label class="form-check-label" for="package-${optionIndex}-${package.code}">
+                            ${package.name} - $${(package.price_cents / 100).toFixed(2)}
+                        </label>
+                    </div>
+                `;
+            });
+            packageContainer.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading packages:', error);
+            packageContainer.innerHTML = '<small class="text-danger">Error loading packages</small>';
+        });
+}
 </script>
 @endpush

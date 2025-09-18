@@ -143,12 +143,17 @@ Route::prefix('admin')->name('admin.')->group(function() {
 
     // ================= Packages Management (Admin) =================
     Route::get('/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesIndex'])->name('packages.index');
-    Route::get('/packages/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesCreate'])->name('packages.create');
-    Route::post('/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesStore'])->name('packages.store');
+    // Route::get('/packages/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesCreate'])->name('packages.create'); // Disabled
+    // Route::post('/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesStore'])->name('packages.store'); // Disabled
     Route::get('/packages/{package}/edit', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesEdit'])->name('packages.edit');
     Route::put('/packages/{package}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesUpdate'])->name('packages.update');
     Route::patch('/packages/{package}/toggle', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesToggleActive'])->name('packages.toggle');
     Route::delete('/packages/{package}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesDestroy'])->name('packages.destroy');
+    
+    // Bulk Package Management
+    Route::get('/packages/bulk-edit', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesBulkEdit'])->name('packages.bulk-edit');
+    Route::put('/packages/bulk-update', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesBulkUpdate'])->name('packages.bulk-update');
+    // Route::post('/packages/bulk-create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesBulkCreate'])->name('packages.bulk-create'); // Disabled
 
     // ================= Quiz Management (Admin) =================
     Route::get('/quizzes', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'quizzesIndex'])->name('quizzes.index');
@@ -160,6 +165,7 @@ Route::prefix('admin')->name('admin.')->group(function() {
     Route::get('/quizzes/flowchart', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'quizzesFlowchart'])->name('quizzes.flowchart');
     Route::get('/quizzes/get-nodes', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'getQuizNodes'])->name('quizzes.get-nodes');
     Route::post('/quizzes/save-flowchart', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'saveQuizFlowchart'])->name('quizzes.save-flowchart');
+    Route::get('/api/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'getPackagesByVisaType'])->name('api.packages');
 });
 
 // Formerly protected workflow routes (now public)
@@ -305,6 +311,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     
     // System Settings
     Route::get('/settings', [AdminDashboardController::class, 'systemSettings'])->name('settings');
+    
+    // API Routes
+    Route::get('/api/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'getPackagesByVisaType'])->name('api.packages');
 });
 
 // Printing Department Dashboard Routes

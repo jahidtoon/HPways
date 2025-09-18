@@ -11,7 +11,7 @@ class Package extends Model
 
     // Normalized fields used by selection & payment controllers
     protected $fillable = [
-        'visa_type', 'code', 'name', 'price_cents', 'features', 'active'
+        'visa_type', 'visa_category_id', 'code', 'name', 'price_cents', 'features', 'active'
     ];
 
     protected $casts = [

@@ -538,8 +538,9 @@ class AdminDashboardController extends Controller
 
     public function packagesCreate()
     {
-        $visaTypes = Application::select('visa_type')->distinct()->pluck('visa_type')->filter()->values();
-        return view('dashboard.admin.packages.create', compact('visaTypes'));
+        $visaTypes = \App\Models\Package::select('visa_type')->distinct()->pluck('visa_type')->filter()->sort()->values();
+        $visaCategories = \App\Models\VisaCategory::all();
+        return view('dashboard.admin.packages.create', compact('visaTypes', 'visaCategories'));
     }
 
     public function packagesStore(Request $request)
@@ -705,6 +706,139 @@ class AdminDashboardController extends Controller
         return redirect()->route('admin.packages.index')->with('success','Package deleted');
     }
 
+    // =================== Bulk Package Management ===================
+    public function packagesBulkEdit(Request $request)
+    {
+        $visaType = $request->get('visa_type');
+        if (!$visaType) {
+            return redirect()->route('admin.packages.index')->with('error', 'Visa type is required for bulk edit');
+        }
+
+        // Get all packages for this visa type
+        $packages = \App\Models\Package::where('visa_type', $visaType)
+            ->orderBy('price_cents')
+            ->get()
+            ->keyBy('code'); // Key by code (basic, advanced, premium)
+
+        $visaTypes = \App\Models\Package::select('visa_type')->distinct()->pluck('visa_type')->filter()->sort()->values();
+
+        return view('dashboard.admin.packages.bulk-edit', compact('packages', 'visaType', 'visaTypes'));
+    }
+
+    public function packagesBulkUpdate(Request $request)
+    {
+        $visaType = $request->get('visa_type');
+        if (!$visaType) {
+            return redirect()->route('admin.packages.index')->with('error', 'Visa type is required');
+        }
+
+        $validated = $request->validate([
+            'packages' => 'required|array',
+            'packages.basic.id' => 'nullable|exists:packages,id',
+            'packages.basic.name' => 'nullable|string|max:255',
+            'packages.basic.price_cents' => 'nullable|integer|min:0',
+            'packages.basic.features' => 'nullable|array',
+            'packages.basic.features.*' => 'string|max:255',
+            'packages.basic.active' => 'nullable|boolean',
+            'packages.advanced.id' => 'nullable|exists:packages,id',
+            'packages.advanced.name' => 'nullable|string|max:255',
+            'packages.advanced.price_cents' => 'nullable|integer|min:0',
+            'packages.advanced.features' => 'nullable|array',
+            'packages.advanced.features.*' => 'string|max:255',
+            'packages.advanced.active' => 'nullable|boolean',
+            'packages.premium.id' => 'nullable|exists:packages,id',
+            'packages.premium.name' => 'nullable|string|max:255',
+            'packages.premium.price_cents' => 'nullable|integer|min:0',
+            'packages.premium.features' => 'nullable|array',
+            'packages.premium.features.*' => 'string|max:255',
+            'packages.premium.active' => 'nullable|boolean',
+        ]);
+
+        $updatedCount = 0;
+        $tiers = ['basic', 'advanced', 'premium'];
+
+        foreach ($tiers as $tier) {
+            if (isset($validated['packages'][$tier]['id'])) {
+                $package = \App\Models\Package::find($validated['packages'][$tier]['id']);
+                if ($package && $package->visa_type === $visaType) {
+                    $package->update([
+                        'name' => $validated['packages'][$tier]['name'],
+                        'price_cents' => $validated['packages'][$tier]['price_cents'],
+                        'features' => $validated['packages'][$tier]['features'] ?? [],
+                        'active' => $validated['packages'][$tier]['active'] ?? true,
+                    ]);
+                    $updatedCount++;
+                }
+            }
+        }
+
+        return redirect()->route('admin.packages.index', ['visa_type' => $visaType])
+            ->with('success', "Successfully updated {$updatedCount} packages for {$visaType}");
+    }
+
+    public function packagesBulkCreate(Request $request)
+    {
+        $visaType = $request->get('visa_type');
+        if (!$visaType) {
+            return redirect()->route('admin.packages.index')->with('error', 'Visa type is required');
+        }
+
+        $validated = $request->validate([
+            'visa_type' => 'required|string|max:40',
+            'packages' => 'required|array|min:1',
+            'packages.basic.code' => 'nullable|string|max:30',
+            'packages.basic.name' => 'nullable|string|max:255',
+            'packages.basic.price' => 'nullable|numeric|min:0',
+            'packages.basic.price_cents' => 'nullable|numeric|min:0',
+            'packages.basic.features' => 'nullable|array',
+            'packages.basic.features.*' => 'string|max:255',
+            'packages.advanced.code' => 'nullable|string|max:30',
+            'packages.advanced.name' => 'nullable|string|max:255',
+            'packages.advanced.price' => 'nullable|numeric|min:0',
+            'packages.advanced.price_cents' => 'nullable|numeric|min:0',
+            'packages.advanced.features' => 'nullable|array',
+            'packages.advanced.features.*' => 'string|max:255',
+            'packages.premium.code' => 'nullable|string|max:30',
+            'packages.premium.name' => 'nullable|string|max:255',
+            'packages.premium.price' => 'nullable|numeric|min:0',
+            'packages.premium.price_cents' => 'nullable|numeric|min:0',
+            'packages.premium.features' => 'nullable|array',
+            'packages.premium.features.*' => 'string|max:255',
+        ]);
+
+        $createdCount = 0;
+        $tiers = ['basic', 'advanced', 'premium'];
+
+        foreach ($tiers as $tier) {
+            if (isset($validated['packages'][$tier]['code']) && isset($validated['packages'][$tier]['name'])) {
+                $price = $validated['packages'][$tier]['price'] ?? $validated['packages'][$tier]['price_cents'] ?? 0;
+
+                // Check for duplicates
+                $duplicate = \App\Models\Package::where('code', $validated['packages'][$tier]['code'])
+                    ->where('visa_type', $visaType)
+                    ->exists();
+
+                if ($duplicate) {
+                    return redirect()->back()->withInput()->with('error', "Package with code '{$validated['packages'][$tier]['code']}' already exists for visa type '{$visaType}'");
+                }
+
+                \App\Models\Package::create([
+                    'visa_type' => $visaType,
+                    'visa_category_id' => null, // Set to null for bulk created packages
+                    'code' => $validated['packages'][$tier]['code'],
+                    'name' => $validated['packages'][$tier]['name'],
+                    'price_cents' => (int) round($price * 100), // Convert dollars to cents
+                    'features' => $validated['packages'][$tier]['features'] ?? [],
+                    'active' => true,
+                ]);
+                $createdCount++;
+            }
+        }
+
+        return redirect()->route('admin.packages.index', ['visa_type' => $visaType])
+            ->with('success', "Successfully created {$createdCount} packages for {$visaType}");
+    }
+
     // Import defaults removed per request
 
     private function refreshTierCompleteness(?string $visaType, $categoryId): void
@@ -747,7 +881,8 @@ class AdminDashboardController extends Controller
 
     public function quizzesCreate()
     {
-        return view('dashboard.admin.quizzes.create');
+        $nextOptions = $this->getNextOptions();
+        return view('dashboard.admin.quizzes.create', compact('nextOptions'));
     }
 
     public function quizzesStore(Request $request)
@@ -761,6 +896,8 @@ class AdminDashboardController extends Controller
             'options.*.code' => 'required|string',
             'options.*.label' => 'required|string',
             'options.*.next' => 'nullable|string',
+            'options.*.packages' => 'nullable|array',
+            'options.*.packages.*' => 'string',
             'x' => 'integer|min:0',
             'y' => 'integer|min:0'
         ]);
@@ -771,9 +908,25 @@ class AdminDashboardController extends Controller
             ->with('success', 'Quiz node created successfully!');
     }
 
+    protected function getNextOptions()
+    {
+        // Get all node IDs from database
+        $nodeIds = QuizNode::pluck('node_id')->toArray();
+        
+        // Get all terminal codes from config
+        $terminals = config('quiz.terminals', []);
+        
+        // Combine and sort
+        $allOptions = array_unique(array_merge($nodeIds, $terminals));
+        sort($allOptions);
+        
+        return $allOptions;
+    }
+
     public function quizzesEdit(QuizNode $quizNode)
     {
-        return view('dashboard.admin.quizzes.edit', compact('quizNode'));
+        $nextOptions = $this->getNextOptions();
+        return view('dashboard.admin.quizzes.edit', compact('quizNode', 'nextOptions'));
     }
 
     public function quizzesUpdate(Request $request, QuizNode $quizNode)
@@ -787,6 +940,8 @@ class AdminDashboardController extends Controller
             'options.*.code' => 'required|string',
             'options.*.label' => 'required|string',
             'options.*.next' => 'nullable|string',
+            'options.*.packages' => 'nullable|array',
+            'options.*.packages.*' => 'string',
             'x' => 'integer|min:0',
             'y' => 'integer|min:0'
         ]);
@@ -810,10 +965,20 @@ class AdminDashboardController extends Controller
         return view('dashboard.admin.flowchart.builder');
     }
 
-    public function getQuizNodes()
+    public function getPackagesByVisaType(Request $request)
     {
-        $nodes = QuizNode::all();
-        return response()->json(['nodes' => $nodes]);
+        $visaType = $request->get('visa_type');
+        
+        if (!$visaType) {
+            return response()->json([]);
+        }
+        
+        $packages = \App\Models\Package::where('visa_type', $visaType)
+            ->where('active', true)
+            ->orderBy('price_cents')
+            ->get(['id', 'code', 'name', 'price_cents']);
+            
+        return response()->json($packages);
     }
 
     public function saveQuizFlowchart(Request $request)

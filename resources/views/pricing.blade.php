@@ -64,7 +64,7 @@
     color: #fff;
     font-size: 0.85rem;
     font-weight: 700;
-    padding: 0.3rem 0.8not hisrem;
+    padding: 0.3rem 0.8rem;
     border-radius: 8px;
     letter-spacing: 1px;
 }
@@ -190,18 +190,28 @@
                 <h3 style="color:#1e3c72;font-weight:700;margin-bottom:1.5rem;padding:2rem 0;">General Service Packages @if($visaType) <small style="font-size:60%;color:#6b7280;">(matching your quiz result)</small>@endif</h3>
             </div>
             @foreach($globalPackages as $package)
+                @php
+                    $code = strtolower($package->code ?? '');
+                    $nameLower = strtolower($package->name ?? '');
+                    $isPremium = in_array($code, ['premium','professional'], true) || $nameLower === 'professional';
+                    $isAdvanced = $code === 'advanced' || $nameLower === 'advanced';
+                    $isBasic = $code === 'basic' || $nameLower === 'basic';
+                    $tierClass = $isPremium ? 'premium' : ($isAdvanced ? 'advanced' : ($isBasic ? 'basic' : ''));
+                    $levelLabel = $isPremium ? 'PROFESSIONAL' : ($isAdvanced ? 'ADVANCED' : ($isBasic ? 'BASIC' : strtoupper($package->name)));
+                    $levelBg = $isPremium ? '#d32f2f' : ($isAdvanced ? '#4e73df' : '#2a3b4d');
+                @endphp
                 <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="pricing-card card-{{ strtolower($package->name) }} {{ strtolower($package->name) == 'premium' ? 'premium' : '' }}">
-                        <div class="pricing-card-level" style="background:{{ strtolower($package->name) == 'premium' ? '#d32f2f' : (strtolower($package->name) == 'advanced' ? '#4e73df' : '#2a3b4d') }};color:#fff;padding:0.8rem 1rem;font-size:1.25rem;font-weight:700;text-align:left;border-top-left-radius:16px;border-top-right-radius:16px;position:relative;">
-                            {{ strtoupper($package->name) }}
-                            @if(strtolower($package->name) == 'advanced')
+                    <div class="pricing-card card-{{ $tierClass }} {{ $isPremium ? 'premium' : '' }}">
+                        <div class="pricing-card-level" style="background:{{ $levelBg }};color:#fff;padding:0.8rem 1rem;font-size:1.25rem;font-weight:700;text-align:left;border-top-left-radius:16px;border-top-right-radius:16px;position:relative;">
+                            {{ $levelLabel }}
+                            @if($isAdvanced)
                                 <span style="position:absolute;top:25px;right:-45px;width:180px;height:32px;background:#d32f2f;color:#fff;font-size:1.05rem;font-weight:700;display:flex;align-items:center;justify-content:center;transform:rotate(35deg);box-shadow:0 2px 8px rgba(0,0,0,0.12);letter-spacing:1px;z-index:10;">POPULAR</span>
                             @endif
                         </div>
                         <div class="pricing-card-header" style="background: linear-gradient(120deg, rgba(30,60,114,0.85) 0%, rgba(30,60,114,0.85) 100%), url('/images/flag.jpg') center center/cover no-repeat, #f8fafc; color:#fff; padding:2.4rem 1rem; font-size:1.05rem; font-weight:600; text-align:center; border-bottom:1px solid #e5e7eb;">
                             @if($visaType) {{ $visaType }} @else Immigration Support @endif
                         </div>
-                        <div class="card-body" style="padding-top:0;padding-bottom:0.2rem;display:flex;flex-direction:column;align-items:center;{{ strtolower($package->name) == 'premium' ? 'background:#d32f2f;' : '' }}">
+                        <div class="card-body" style="padding-top:0;padding-bottom:0.2rem;display:flex;flex-direction:column;align-items:center;{{ $isPremium ? 'background:#d32f2f;' : '' }}">
                             <div class="price" style="margin-top:0;margin-bottom:0.5rem;align-self:flex-start;">${{ number_format($package->price, 2) }}</div>
                             <ul class="features" style="margin-top:1rem;">
                                 @foreach($package->features as $feature)
@@ -224,12 +234,22 @@
                 <h3 style="color:#1e3c72;font-weight:700;margin-bottom:1.5rem;padding:2rem 0;">{{ $category->name }}</h3>
                 <div class="row">
                     @foreach($category->packages as $package)
+                        @php
+                            $code = strtolower($package->code ?? '');
+                            $nameLower = strtolower($package->name ?? '');
+                            $isPremium = in_array($code, ['premium','professional'], true) || $nameLower === 'professional';
+                            $isAdvanced = $code === 'advanced' || $nameLower === 'advanced';
+                            $isBasic = $code === 'basic' || $nameLower === 'basic';
+                            $tierClass = $isPremium ? 'premium' : ($isAdvanced ? 'advanced' : ($isBasic ? 'basic' : ''));
+                            $levelLabel = $isPremium ? 'PROFESSIONAL' : ($isAdvanced ? 'ADVANCED' : ($isBasic ? 'BASIC' : strtoupper($package->name)));
+                            $levelBg = $isPremium ? '#d32f2f' : ($isAdvanced ? '#4e73df' : '#2a3b4d');
+                        @endphp
                         <div class="col-lg-4 col-md-6 mb-4">
-                            <div class="pricing-card card-{{ strtolower($package->name) }} {{ strtolower($package->name) == 'premium' ? 'premium' : '' }}">
+                            <div class="pricing-card card-{{ $tierClass }} {{ $isPremium ? 'premium' : '' }}">
                                 <!-- Top header for package level -->
-                                <div class="pricing-card-level" style="background:{{ strtolower($package->name) == 'premium' ? '#d32f2f' : (strtolower($package->name) == 'advanced' ? '#4e73df' : '#2a3b4d') }};color:#fff;padding:0.8rem 1rem 0.8rem 1rem;font-size:1.25rem;font-weight:700;text-align:left;border-top-left-radius:16px;border-top-right-radius:16px;position:relative;">
-                                        {{ strtoupper($package->name) }}
-                                        @if(strtolower($package->name) == 'advanced')
+                                <div class="pricing-card-level" style="background:{{ $levelBg }};color:#fff;padding:0.8rem 1rem 0.8rem 1rem;font-size:1.25rem;font-weight:700;text-align:left;border-top-left-radius:16px;border-top-right-radius:16px;position:relative;">
+                                        {{ $levelLabel }}
+                                        @if($isAdvanced)
                                             <span style="position:absolute;top:25px;right:-45px;width:180px;height:32px;background:#d32f2f;color:#fff;font-size:1.05rem;font-weight:700;display:flex;align-items:center;justify-content:center;transform:rotate(35deg);box-shadow:0 2px 8px rgba(0,0,0,0.12);letter-spacing:1px;z-index:10;">POPULAR</span>
                                         @endif
                                 </div>
@@ -238,7 +258,7 @@
                                     {{ $category->name }}
                                 </div>
                                     <!-- Card body -->
-                                    <div class="card-body" style="padding-top:0;padding-bottom:0.2rem;display:flex;flex-direction:column;align-items:center;{{ strtolower($package->name) == 'premium' ? 'background:#d32f2f;' : '' }}">
+                                    <div class="card-body" style="padding-top:0;padding-bottom:0.2rem;display:flex;flex-direction:column;align-items:center;{{ $isPremium ? 'background:#d32f2f;' : '' }}">
                                         <div class="price" style="margin-top:0;margin-bottom:0.5rem;align-self:flex-start;">${{ number_format($package->price, 2) }}</div>
                                     <!--<div class="desc" style="text-align:left;">{{ $package->description ?? 'Contact us for more details.' }}</div>-->
                                     <ul class="features" style="margin-top:1rem;">

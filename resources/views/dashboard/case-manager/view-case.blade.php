@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', 'View Case')
+@section('title', 'Case #' . $case->id . ' - ' . ($case->user->name ?? 'N/A'))
 @section('page-title', 'Case Details')
 
 @section('styles')
@@ -63,11 +63,11 @@
 @section('content')
 <div class="case-header">
     <div class="d-flex justify-content-between align-items-center">
-        <h3 class="mb-0">{{ $case->applicant_name }} - {{ $case->visa_type }}</h3>
+        <h3 class="mb-0">{{ $case->user->name ?? 'N/A' }} - {{ $case->visa_type ?? 'N/A' }}</h3>
         <span class="badge bg-primary px-3 py-2">{{ $case->status }}</span>
     </div>
     <div class="mt-2">
-        <p class="mb-0">Case ID: {{ $case->id }} | Submitted: {{ $case->submitted_at }}</p>
+        <p class="mb-0">Case ID: {{ $case->id }} | Submitted: {{ $case->submitted_at ? $case->submitted_at->format('M d, Y') : 'Not submitted' }}</p>
     </div>
 </div>
 
@@ -95,13 +95,13 @@
                     <div class="col-md-6">
                         <div class="card status-card bg-light">
                             <div class="card-body d-flex align-items-center">
-                                <div class="status-icon text-{{ $case->attorney_name ? 'success' : 'warning' }}">
+                                <div class="status-icon text-{{ $case->attorney ? 'success' : 'warning' }}">
                                     <i class="fas fa-gavel"></i>
                                 </div>
                                 <div>
                                     <h6 class="mb-1">Attorney</h6>
-                                    @if($case->attorney_name)
-                                        <p class="mb-0">Assigned: <strong>{{ $case->attorney_name }}</strong></p>
+                                    @if($case->attorney)
+                                        <p class="mb-0">Assigned: <strong>{{ $case->attorney->name }}</strong></p>
                                     @else
                                         <p class="mb-0"><span class="badge badge-lg bg-warning">Not Assigned</span></p>
                                     @endif
@@ -117,11 +117,18 @@
                                 </div>
                                 <div>
                                     <h6 class="mb-1">Documents</h6>
-                                    @if(count($case->missing_documents) > 0)
-                                        <p class="mb-0"><span class="badge badge-lg bg-danger">{{ count($case->missing_documents) }} Missing</span></p>
-                                    @else
-                                        <p class="mb-0"><span class="badge badge-lg bg-success">Complete</span></p>
-                                    @endif
+                                    @php
+                                        $uploadedDocs = $case->documents ?? collect();
+                                        $uploadedCount = $uploadedDocs->count();
+                                        $missingDocs = $case->missing_documents ?? [];
+                                        $missingCount = is_array($missingDocs) ? count($missingDocs) : 0;
+                                    @endphp
+                                    <p class="mb-0">
+                                        <span class="badge badge-lg bg-success">{{ $uploadedCount }} Uploaded</span>
+                                        @if($missingCount > 0)
+                                            <span class="badge badge-lg bg-danger">{{ $missingCount }} Missing</span>
+                                        @endif
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -147,23 +154,159 @@
             </div>
         </div>
 
-        @if(count($case->missing_documents) > 0)
+        <!-- Document Status Details -->
         <div class="card card-glass">
-            <div class="card-header bg-white">
-                <h5 class="mb-0"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Missing Documents</h5>
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-file-alt text-primary me-2"></i>Document Status</h5>
+                @if($case->selectedPackage)
+                    <small class="text-muted">Package: {{ $case->selectedPackage->name }}</small>
+                @endif
             </div>
             <div class="card-body">
-                <ul class="list-group list-group-flush">
-                    @foreach($case->missing_documents as $document)
-                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
-                        {{ $document }}
-                        <button class="btn btn-sm btn-outline-primary">Request</button>
-                    </li>
-                    @endforeach
-                </ul>
+                @if(count($required) > 0 || count($optional) > 0)
+                    <div class="row">
+                        @if(count($required) > 0)
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3"><i class="fas fa-exclamation-circle text-danger me-1"></i>Required Documents</h6>
+                            <div class="list-group list-group-flush">
+                                @foreach($required as $doc)
+                                    <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                                        <div>
+                                            <strong>{{ $doc['label'] }}</strong>
+                                            <small class="text-muted d-block">{{ $doc['code'] }}</small>
+                                        </div>
+                                        @if($doc['uploaded'])
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> Uploaded
+                                            </span>
+                                        @else
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times"></i> Missing
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                        
+                        @if(count($optional) > 0)
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3"><i class="fas fa-info-circle text-info me-1"></i>Optional Documents</h6>
+                            <div class="list-group list-group-flush">
+                                @foreach($optional as $doc)
+                                    <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                                        <div>
+                                            <strong>{{ $doc['label'] }}</strong>
+                                            <small class="text-muted d-block">{{ $doc['code'] }}</small>
+                                        </div>
+                                        @if($doc['uploaded'])
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> Uploaded
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-minus"></i> Not Uploaded
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                @else
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>No document requirements defined</strong><br>
+                        Visa Type: {{ $case->visa_type ?? 'None' }}<br>
+                        Package: {{ $case->selectedPackage->name ?? 'None' }}
+                    </div>
+                @endif
+                
+                @if($case->documents->count() > 0)
+                    <hr class="my-4">
+                    <h6 class="mb-3"><i class="fas fa-paperclip text-primary me-2"></i>All Uploaded Documents ({{ $case->documents->count() }})</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Document Name</th>
+                                    <th>Type</th>
+                                    <th>Size</th>
+                                    <th>Status</th>
+                                    <th>Translation</th>
+                                    <th>Upload Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($case->documents as $doc)
+                                    <tr>
+                                        <td>
+                                            <strong>{{ $doc->original_name }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">{{ $doc->type }}</span>
+                                        </td>
+                                        <td>
+                                            {{ number_format($doc->size_bytes / 1024, 1) }} KB
+                                        </td>
+                                        <td>
+                                            @switch($doc->status)
+                                                @case('pending')
+                                                    <span class="badge bg-warning">Pending Review</span>
+                                                    @break
+                                                @case('approved')
+                                                    <span class="badge bg-success">Approved</span>
+                                                    @break
+                                                @case('rejected')
+                                                    <span class="badge bg-danger">Rejected</span>
+                                                    @break
+                                                @default
+                                                    <span class="badge bg-secondary">{{ $doc->status }}</span>
+                                            @endswitch
+                                        </td>
+                                        <td>
+                                            @if($doc->needs_translation)
+                                                @switch($doc->translation_status)
+                                                    @case('pending')
+                                                        <span class="badge bg-warning">Translation Needed</span>
+                                                        @break
+                                                    @case('in_progress')
+                                                        <span class="badge bg-info">Translating</span>
+                                                        @break
+                                                    @case('completed')
+                                                        <span class="badge bg-success">Translated</span>
+                                                        @break
+                                                    @case('rejected')
+                                                        <span class="badge bg-danger">Translation Rejected</span>
+                                                        @break
+                                                    @default
+                                                        <span class="badge bg-secondary">{{ $doc->translation_status }}</span>
+                                                @endswitch
+                                            @else
+                                                <span class="badge bg-light text-muted">No Translation</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ $doc->created_at->format('M d, Y H:i') }}</small>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>No documents uploaded yet</strong><br>
+                        The applicant hasn't uploaded any documents for this case.
+                    </div>
+                @endif
             </div>
         </div>
-        @endif
+
+
 
         @if(isset($case->feedback) && $case->feedback)
         <div class="card card-glass">
@@ -180,7 +323,7 @@
     </div>
     
     <div class="col-md-4">
-        @if(!$case->attorney_name)
+        @if(!$case->attorney)
         <div class="action-box mb-4">
             <h5 class="mb-3">Assign Attorney</h5>
             <form action="{{ route('case-manager.assign-attorney', $case->id) }}" method="POST">

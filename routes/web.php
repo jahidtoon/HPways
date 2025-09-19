@@ -43,7 +43,7 @@ Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');
 // Auth routes
 Route::get('/login', [LoginController::class,'show'])->name('login');
 Route::post('/login', [LoginController::class,'login'])->name('login.perform');
-Route::post('/logout', [LoginController::class,'logout'])->name('logout');
+Route::match(['get', 'post'], '/logout', [LoginController::class,'logout'])->name('logout');
 Route::get('/register', [RegisterController::class,'show'])->name('register');
 Route::post('/register', [RegisterController::class,'register'])->name('register.perform');
 
@@ -92,11 +92,23 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('dashboard/case-manager')->name('dashboard.case-manager.')->middleware(['auth', 'role:case_manager'])->group(function() {
         Route::get('/', [App\Http\Controllers\CaseManagerController::class, 'index'])->name('index');
         Route::get('/applications', [App\Http\Controllers\CaseManagerController::class, 'applications'])->name('applications');
+        Route::get('/all-applications', [App\Http\Controllers\CaseManagerController::class, 'allApplications'])->name('all-applications');
         Route::get('/case/{id}', [App\Http\Controllers\CaseManagerController::class, 'viewCase'])->name('case.view');
         Route::post('/case/{id}/assign-self', [App\Http\Controllers\CaseManagerController::class, 'assignSelf'])->name('case.assign-self');
+        Route::post('/case/{id}/assign-case-manager', [App\Http\Controllers\CaseManagerController::class, 'assignCaseManager'])->name('case.assign-case-manager');
         Route::post('/case/{id}/assign-attorney', [App\Http\Controllers\CaseManagerController::class, 'assignAttorney'])->name('case.assign-attorney');
         Route::post('/case/{id}/request-documents', [App\Http\Controllers\CaseManagerController::class, 'requestDocuments'])->name('case.request-documents');
+        Route::post('/case/{id}/mark-ready', [App\Http\Controllers\CaseManagerController::class, 'markReady'])->name('mark-ready');
         Route::get('/attorneys', [App\Http\Controllers\CaseManagerController::class, 'attorneys'])->name('attorneys');
+        
+        // Reports & Analytics
+        Route::get('/reports', [App\Http\Controllers\CaseManagerController::class, 'reports'])->name('reports');
+        Route::get('/analytics', [App\Http\Controllers\CaseManagerController::class, 'analytics'])->name('analytics');
+        
+        // Tools
+        Route::get('/documents', [App\Http\Controllers\CaseManagerController::class, 'documents'])->name('documents');
+        Route::get('/notifications', [App\Http\Controllers\CaseManagerController::class, 'notifications'])->name('notifications');
+        Route::get('/settings', [App\Http\Controllers\CaseManagerController::class, 'settings'])->name('settings');
     });
     
     // Attorney Dashboard Routes  
@@ -196,104 +208,29 @@ Route::post('/webhooks/payments',[App\Http\Controllers\PaymentWebhookController:
 
 // Admin Routes (public per request)
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', function() {
-        // Get real statistics from database using PDO
-        $db_path = '/var/www/html/hpways/database/database.sqlite';
-        $pdo = new PDO('sqlite:' . $db_path);
-        
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM users");
-        $totalUsers = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
-        
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE id IN (SELECT model_id FROM model_has_roles WHERE model_type = 'App\\Models\\User' AND role_id IN (SELECT id FROM roles WHERE name = 'applicant'))");
-        $totalApplicants = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
-        
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE id IN (SELECT model_id FROM model_has_roles WHERE model_type = 'App\\Models\\User' AND role_id IN (SELECT id FROM roles WHERE name = 'case_manager'))");
-        $totalCaseManagers = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
-        
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE id IN (SELECT model_id FROM model_has_roles WHERE model_type = 'App\\Models\\User' AND role_id IN (SELECT id FROM roles WHERE name = 'attorney'))");
-        $totalAttorneys = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
-        
-        // Get recent users (up to 5)
-        $stmt = $pdo->query("SELECT * FROM users ORDER BY created_at DESC LIMIT 5");
-        $recentUsers = [];
-        while ($user = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            // Get user roles
-            $roleStmt = $pdo->prepare("
-                SELECT r.name FROM roles r
-                JOIN model_has_roles mhr ON r.id = mhr.role_id
-                WHERE mhr.model_id = ? AND mhr.model_type = 'App\\Models\\User'
-            ");
-            $roleStmt->execute([$user['id']]);
-            $roles = [];
-            while ($role = $roleStmt->fetch(PDO::FETCH_ASSOC)) {
-                $roles[] = (object)['name' => $role['name']];
-            }
-            
-            $user['roles'] = $roles;
-            $recentUsers[] = (object)$user;
-        }
-        
-        // Create some sample applications
-        $recentApplications = [
-            (object)[
-                'id' => 1,
-                'status' => 'pending',
-                'visa_type' => 'H-1B',
-                'created_at' => new DateTime('2025-08-15'),
-                'user' => (object)['name' => 'John Doe']
-            ],
-            (object)[
-                'id' => 2,
-                'status' => 'approved',
-                'visa_type' => 'O-1',
-                'created_at' => new DateTime('2025-08-20'),
-                'user' => (object)['name' => 'Jane Smith']
-            ],
-            (object)[
-                'id' => 3,
-                'status' => 'under_review',
-                'visa_type' => 'L-1',
-                'created_at' => new DateTime('2025-08-25'),
-                'user' => (object)['name' => 'Robert Johnson']
-            ]
-        ];
-        
-        return view('dashboard.admin.index', compact(
-            'totalUsers', 
-            'totalApplicants', 
-            'totalCaseManagers', 
-            'totalAttorneys',
-            'recentUsers',
-            'recentApplications'
-        ));
-    })->name('dashboard');
-    
-    // Other admin routes - all accessible without authentication for now
-    Route::get('/settings', function() {
-        return view('dashboard.admin.settings');
-    })->name('settings');
-    
-    // Direct routes for admin functionality without authentication
-    Route::get('/users', function() {
-        // Simple user listing without authentication
-        return view('dashboard.admin.users', ['users' => [], 'roles' => []]);
-    })->name('users');
-    
-    Route::get('/applications', function() {
-        // Simple applications listing without authentication
-        return view('dashboard.admin.applications', ['applications' => []]);
-    })->name('applications');
+    // Use the real controller for the dashboard so data reflects actual applications/users
+    Route::get('/', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'index'])->name('dashboard');
     
     // User Management
     Route::get('/users', [AdminDashboardController::class, 'userManagement'])->name('users');
+    Route::get('/users/{id}', [AdminDashboardController::class, 'showUser'])->name('users.show');
     Route::get('/users/create', [AdminDashboardController::class, 'createUser'])->name('create-user');
     Route::post('/users/store', [AdminDashboardController::class, 'storeUser'])->name('store-user');
+    Route::get('/users/{user}/edit', [AdminDashboardController::class, 'editUser'])->name('edit-user');
     Route::put('/users/{user}', [AdminDashboardController::class, 'updateUser'])->name('update-user');
     Route::delete('/users/{user}', [AdminDashboardController::class, 'deleteUser'])->name('delete-user');
+    Route::post('/users/{user}/reset-password', [AdminDashboardController::class, 'resetPassword'])->name('reset-password');
     Route::post('/users/{user}/assign-role', [AdminDashboardController::class, 'assignRole'])->name('assign-role');
     
     // Staff Management
     Route::get('/case-managers', [AdminDashboardController::class, 'caseManagers'])->name('case-managers');
+    Route::get('/case-managers/{user}', [AdminDashboardController::class, 'viewCaseManager'])->name('case-managers.view');
+    Route::get('/case-managers/{user}/edit', [AdminDashboardController::class, 'editCaseManager'])->name('case-managers.edit');
+    Route::put('/case-managers/{user}', [AdminDashboardController::class, 'updateCaseManager'])->name('case-managers.update');
+    Route::get('/case-managers/{user}/cases', [AdminDashboardController::class, 'caseManagerCases'])->name('case-managers.cases');
+    Route::post('/case-managers/{user}/suspend', [AdminDashboardController::class, 'suspendCaseManager'])->name('case-managers.suspend');
+    Route::post('/case-managers/{user}/activate', [AdminDashboardController::class, 'activateCaseManager'])->name('case-managers.activate');
+    Route::post('/case-managers/{user}/reset-password', [AdminDashboardController::class, 'resetCaseManagerPassword'])->name('case-managers.reset-password');
     Route::get('/attorneys', [AdminDashboardController::class, 'attorneys'])->name('attorneys');
     
     // Application Management
@@ -352,8 +289,8 @@ Route::prefix('printing')->name('printing.')->group(function() {
 });
 // Case Manager Routes
 Route::prefix('case-manager')->name('case-manager.')->group(function() {
-    Route::get('/', [App\Http\Controllers\CaseManagerController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard', [App\Http\Controllers\CaseManagerController::class, 'index'])->name('dashboard-alt');
+    Route::get('/', [App\Http\Controllers\CaseManagerController::class, 'index'])->name('index');
+    Route::get('/dashboard', [App\Http\Controllers\CaseManagerController::class, 'index'])->name('dashboard');
     Route::get('/case/{id}', [App\Http\Controllers\CaseManagerController::class, 'viewCase'])->name('view-case');
     Route::post('/case/{id}/assign-self', [App\Http\Controllers\CaseManagerController::class, 'assignSelf'])->name('assign-self');
     Route::post('/case/{id}/assign-attorney', [App\Http\Controllers\CaseManagerController::class, 'assignAttorney'])->name('assign-attorney');

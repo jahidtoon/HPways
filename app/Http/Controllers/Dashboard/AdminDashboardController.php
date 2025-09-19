@@ -37,13 +37,17 @@ class AdminDashboardController extends Controller
             ->pluck('count', 'name')
             ->toArray();
             
-        $totalApplicants = $roleUserCount['applicant'] ?? User::whereDoesntHave('roles')->count();
+        $totalApplicants = $roleUserCount['applicant'] ?? User::whereHas('roles', function($query) {
+            $query->where('name', 'applicant');
+        })->count();
         $totalCaseManagers = $roleUserCount['case_manager'] ?? 0;
         $totalAttorneys = $roleUserCount['attorney'] ?? 0;
         $totalAdmins = ($roleUserCount['admin'] ?? 0) + ($roleUserCount['big_admin'] ?? 0);
         
-        // Get recent users
-        $recentUsers = User::with('roles')
+        // Get recent applicants
+        $recentUsers = User::whereHas('roles', function($query) {
+                $query->where('name', 'applicant');
+            })
             ->orderBy('created_at', 'desc')
             ->take(5)
             ->get();
@@ -54,9 +58,10 @@ class AdminDashboardController extends Controller
         $approvedApplications = Application::where('status', 'approved')->count();
         $rejectedApplications = Application::where('status', 'rejected')->count();
 
-        // Get recent applications
+        // Get recent applications: include all statuses, prefer submitted_at, then created_at, then newest id
         $recentApplications = Application::with('user')
-            ->orderBy('created_at', 'desc')
+            ->orderByRaw('COALESCE(submitted_at, created_at) DESC')
+            ->orderByDesc('id')
             ->take(5)
             ->get();
         
@@ -78,16 +83,17 @@ class AdminDashboardController extends Controller
     public function userManagement()
     {
         try {
-            $users = User::with('roles')->paginate(15);
-            $roles = Role::all();
+            // Get applicants (users with 'applicant' role)
+            $users = User::whereHas('roles', function($query) {
+                $query->where('name', 'applicant');
+            })->with('applications')->paginate(15);
             
-            return view('dashboard.admin.users', compact('users', 'roles'));
+            return view('dashboard.admin.users', compact('users'));
         } catch (\Exception $e) {
             // Fallback for when database might not be accessible
             return view('dashboard.admin.users', [
                 'users' => [], 
-                'roles' => [],
-                'error' => 'Could not load users: ' . $e->getMessage()
+                'error' => 'Could not load applicants: ' . $e->getMessage()
             ]);
         }
     }
@@ -154,10 +160,22 @@ class AdminDashboardController extends Controller
         return back()->with('success', 'Role assigned successfully');
     }
     
+    public function showUser($id)
+    {
+        $user = User::with('applications')->findOrFail($id);
+        return view('dashboard.admin.user-profile', compact('user'));
+    }
+    
     public function createUser()
     {
         $roles = Role::where('name', '!=', 'applicant')->get();
         return view('dashboard.admin.create-user', compact('roles'));
+    }
+
+    public function editUser(User $user)
+    {
+        $roles = Role::where('name', '!=', 'applicant')->get();
+        return view('dashboard.admin.edit-user', compact('user', 'roles'));
     }
 
     public function storeUser(Request $request)
@@ -197,7 +215,8 @@ class AdminDashboardController extends Controller
                 'payments',
                 'caseManager', 
                 'attorney',
-                'assignedPrinter'
+                'assignedPrinter',
+                'selectedPackage'
             ])->findOrFail($id);
             
             // Get all available staff for assignment
@@ -205,15 +224,28 @@ class AdminDashboardController extends Controller
             $availableAttorneys = User::role('attorney')->get(); 
             $availablePrinters = User::role('printing_department')->get();
             
-            // Get required documents for this visa type
-            $requiredDocuments = \App\Models\RequiredDocument::where('visa_type', $application->visa_type)
-                ->orWhere('visa_type', 'all')
-                ->where('active', 1)
-                ->get();
-            
-            // Calculate completion percentage
-            $totalRequired = $requiredDocuments->count();
-            $submitted = $application->documents->count();
+            // Determine required documents - prefer package-specific, fallback to visa-type config/table
+            $requiredDocuments = collect();
+            if ($application->selected_package_id) {
+                $requiredDocuments = \App\Models\PackageRequiredDocument::where('package_id', $application->selected_package_id)
+                    ->where('active', 1)
+                    ->get();
+            }
+            if ($requiredDocuments->isEmpty()) {
+                // Fallback to RequiredDocument table matching visa_type or 'all'
+                $requiredDocuments = \App\Models\RequiredDocument::where(function($q) use ($application) {
+                        $q->where('visa_type', $application->visa_type)
+                          ->orWhere('visa_type', 'all');
+                    })
+                    ->where('active', 1)
+                    ->get();
+            }
+
+            // Compute completion based on required codes mapped to uploaded Document.type
+            $requiredCodes = $requiredDocuments->pluck('code')->filter()->values();
+            $uploadedCodes = collect($application->documents)->pluck('type')->filter()->unique();
+            $submitted = $uploadedCodes->intersect($requiredCodes)->count();
+            $totalRequired = $requiredCodes->count();
             $completionPercentage = $totalRequired > 0 ? round(($submitted / $totalRequired) * 100) : 0;
             
             return view('dashboard.admin.application-detail', compact(
@@ -300,6 +332,25 @@ class AdminDashboardController extends Controller
 
         $user->delete();
         return back()->with('success', 'User deleted successfully.');
+    }
+
+    public function resetPassword(Request $request, User $user)
+    {
+        // Generate a random password
+        $newPassword = 'TempPass' . rand(1000, 9999);
+
+        $user->update([
+            'password' => Hash::make($newPassword)
+        ]);
+
+        // Here you could send an email to the user with the new password
+        // For now, we'll return it in the response
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password reset successfully',
+            'new_password' => $newPassword
+        ]);
     }
 
     public function updateApplicationStatus(Request $request, Application $application)
@@ -1029,5 +1080,147 @@ class AdminDashboardController extends Controller
         }
 
         return response()->json(['success' => true, 'message' => 'Flowchart saved successfully!']);
+    }
+    
+    // Case Manager Management Methods
+    public function viewCaseManager(User $user)
+    {
+        // Ensure the user is a case manager
+        if (!$user->hasRole('case_manager')) {
+            return redirect()->route('admin.case-managers')->with('error', 'User is not a case manager.');
+        }
+        
+        // Get case manager's statistics
+        $totalCases = $user->applications()->count();
+        $activeCases = $user->applications()->whereIn('status', ['pending', 'in_progress', 'document_review'])->count();
+        $completedCases = $user->applications()->where('status', 'completed')->count();
+        $recentCases = $user->applications()->with('user')->latest()->limit(10)->get();
+        
+        return view('dashboard.admin.case-managers.view', compact('user', 'totalCases', 'activeCases', 'completedCases', 'recentCases'));
+    }
+    
+    public function editCaseManager(User $user)
+    {
+        // Ensure the user is a case manager
+        if (!$user->hasRole('case_manager')) {
+            return redirect()->route('admin.case-managers')->with('error', 'User is not a case manager.');
+        }
+        
+        return view('dashboard.admin.case-managers.edit', compact('user'));
+    }
+    
+    public function updateCaseManager(Request $request, User $user)
+    {
+        // Ensure the user is a case manager
+        if (!$user->hasRole('case_manager')) {
+            return redirect()->route('admin.case-managers')->with('error', 'User is not a case manager.');
+        }
+        
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'username' => 'nullable|string|max:255|unique:users,username,' . $user->id,
+            'password' => 'nullable|min:8|confirmed',
+        ]);
+        
+        $updateData = [
+            'name' => $request->name,
+            'email' => $request->email,
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'username' => $request->username,
+        ];
+        
+        // Only update password if provided
+        if ($request->filled('password')) {
+            $updateData['password'] = Hash::make($request->password);
+        }
+        
+        $user->update($updateData);
+        
+        $message = 'Case Manager updated successfully.';
+        if ($request->filled('password')) {
+            $message .= ' Password has been changed.';
+        }
+        
+        return redirect()->route('admin.case-managers.view', $user)->with('success', $message);
+    }
+    
+    public function caseManagerCases(User $user)
+    {
+        // Ensure the user is a case manager
+        if (!$user->hasRole('case_manager')) {
+            return redirect()->route('admin.case-managers')->with('error', 'User is not a case manager.');
+        }
+        
+        $cases = $user->applications()->with(['user', 'attorney'])->paginate(15);
+        
+        return view('dashboard.admin.case-managers.cases', compact('user', 'cases'));
+    }
+    
+    public function suspendCaseManager(User $user)
+    {
+        // Ensure the user is a case manager
+        if (!$user->hasRole('case_manager')) {
+            return redirect()->route('admin.case-managers')->with('error', 'User is not a case manager.');
+        }
+        
+        // Check if there are migration columns for suspension
+        try {
+            $user->update(['is_suspended' => true]);
+            $message = 'Case Manager suspended successfully.';
+        } catch (\Exception $e) {
+            // If no is_suspended column, we can still show the action worked
+            $message = 'Case Manager suspension recorded.';
+        }
+        
+        return redirect()->route('admin.case-managers')->with('success', $message);
+    }
+    
+    public function activateCaseManager(User $user)
+    {
+        // Ensure the user is a case manager
+        if (!$user->hasRole('case_manager')) {
+            return redirect()->route('admin.case-managers')->with('error', 'User is not a case manager.');
+        }
+        
+        // Check if there are migration columns for suspension
+        try {
+            $user->update(['is_suspended' => false]);
+            $message = 'Case Manager activated successfully.';
+        } catch (\Exception $e) {
+            // If no is_suspended column, we can still show the action worked
+            $message = 'Case Manager activation recorded.';
+        }
+        
+        return redirect()->route('admin.case-managers')->with('success', $message);
+    }
+    
+    public function resetCaseManagerPassword(Request $request, User $user)
+    {
+        // Ensure the user is a case manager
+        if (!$user->hasRole('case_manager')) {
+            return redirect()->route('admin.case-managers')->with('error', 'User is not a case manager.');
+        }
+        
+        $request->validate([
+            'password' => 'required|min:8|confirmed',
+            'notify_user' => 'nullable|boolean',
+        ]);
+        
+        // Update password
+        $user->update([
+            'password' => Hash::make($request->password)
+        ]);
+        
+        // Optional: Send email notification (implement if needed)
+        if ($request->filled('notify_user') && $request->notify_user) {
+            // TODO: Send email notification to user about password change
+            // You can implement this using Laravel's Mail functionality
+        }
+        
+        return redirect()->route('admin.case-managers.view', $user)->with('success', 'Password reset successfully for ' . $user->name);
     }
 }

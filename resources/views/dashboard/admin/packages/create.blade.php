@@ -41,7 +41,7 @@
                                     $tiers = [
                                         'basic' => ['name' => 'Basic Package', 'price' => '46.99', 'color' => 'primary'],
                                         'advanced' => ['name' => 'Advanced Package', 'price' => '79.99', 'color' => 'info'],
-                                        'premium' => ['name' => 'Premium Package', 'price' => '109.99', 'color' => 'warning']
+                                        'premium' => ['name' => 'Professional Package', 'price' => '109.99', 'color' => 'warning']
                                     ];
                                 @endphp
                                 @foreach($tiers as $tier => $config)

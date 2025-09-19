@@ -133,7 +133,11 @@
                                 </td>
                                 <td>{{ $manager->created_at->format('M d, Y') }}</td>
                                 <td>
-                                    <span class="badge bg-success">Active</span>
+                                    @if($manager->is_suspended ?? false)
+                                        <span class="badge bg-danger">Suspended</span>
+                                    @else
+                                        <span class="badge bg-success">Active</span>
+                                    @endif
                                 </td>
                                 <td>
                                     <div class="dropdown">
@@ -141,11 +145,29 @@
                                             Actions
                                         </button>
                                         <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="#"><i class="fas fa-eye"></i> View Profile</a></li>
-                                            <li><a class="dropdown-item" href="#"><i class="fas fa-edit"></i> Edit</a></li>
-                                            <li><a class="dropdown-item" href="#"><i class="fas fa-tasks"></i> View Cases</a></li>
+                                            <li><a class="dropdown-item" href="{{ route('admin.case-managers.view', $manager) }}"><i class="fas fa-eye"></i> View Profile</a></li>
+                                            <li><a class="dropdown-item" href="{{ route('admin.case-managers.edit', $manager) }}"><i class="fas fa-edit"></i> Edit</a></li>
+                                            <li><a class="dropdown-item" href="{{ route('admin.case-managers.cases', $manager) }}"><i class="fas fa-tasks"></i> View Cases</a></li>
                                             <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-ban"></i> Suspend</a></li>
+                                            @if($manager->is_suspended ?? false)
+                                                <li>
+                                                    <form action="{{ route('admin.case-managers.activate', $manager) }}" method="POST" style="display: inline;">
+                                                        @csrf
+                                                        <button type="submit" class="dropdown-item text-success" onclick="return confirm('Are you sure you want to activate this case manager?')">
+                                                            <i class="fas fa-check"></i> Activate
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            @else
+                                                <li>
+                                                    <form action="{{ route('admin.case-managers.suspend', $manager) }}" method="POST" style="display: inline;">
+                                                        @csrf
+                                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Are you sure you want to suspend this case manager?')">
+                                                            <i class="fas fa-ban"></i> Suspend
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            @endif
                                         </ul>
                                     </div>
                                 </td>

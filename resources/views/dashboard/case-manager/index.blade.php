@@ -688,7 +688,7 @@
           <i class="fas fa-cog"></i>
           <span>General</span>
         </a>
-        <a href="#" class="sidebar-menu-item">
+        <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" class="sidebar-menu-item">
           <i class="fas fa-sign-out-alt"></i>
           <span>Logout</span>
         </a>
@@ -980,5 +980,10 @@
       });
     });
   </script>
+  
+  <!-- Logout Form -->
+  <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+    @csrf
+  </form>
 </body>
 </html>

@@ -81,18 +81,24 @@
     
     .card .icon-bg {
         position: absolute;
-        right: -20px;
-        bottom: -20px;
-        font-size: 7rem;
+        right: -10px;
+        bottom: -10px;
+        font-size: 3rem;
         opacity: 0.03;
         z-index: 0;
         transform: rotate(-10deg);
         transition: all 0.5s ease;
+        pointer-events: none;
+        user-select: none;
     }
     
     .card:hover .icon-bg {
-        transform: rotate(-15deg) scale(1.2);
+        transform: rotate(-15deg) scale(1.05);
         opacity: 0.04;
+    }
+
+    @media (max-width: 992px) {
+        .card .icon-bg { display: none; }
     }
     
     .card.users-card .icon-wrapper {
@@ -656,7 +662,10 @@
                                     </div>
                                 </td>
                                 <td><span class="badge bg-primary">{{ $app->visa_type ?? 'Unknown' }}</span></td>
-                                <td>{{ isset($app->created_at) ? $app->created_at->format('M d, Y') : '-' }}</td>
+                                <td>
+                                    @php $date = $app->submitted_at ?? $app->created_at ?? null; @endphp
+                                    {{ $date ? \Carbon\Carbon::parse($date)->format('M d, Y') : '-' }}
+                                </td>
                                 <td>
                                     @php
                                         $statusClass = 'bg-info';
@@ -668,9 +677,12 @@
                                         } elseif ($status == 'rejected') {
                                             $statusClass = 'bg-danger';
                                             $status = 'Rejected';
-                                        } elseif ($status == 'reviewing') {
+                                        } elseif (in_array($status, ['under_review','reviewing','pending_review','pending_attorney_review'])) {
                                             $statusClass = 'bg-warning';
                                             $status = 'Under Review';
+                                        } elseif ($status == 'draft') {
+                                            $statusClass = 'bg-secondary';
+                                            $status = 'Draft';
                                         } else {
                                             $status = 'Pending';
                                         }
@@ -709,44 +721,16 @@
         </div>
     </div>
     
-    <!-- Recent Users & Quick Actions -->
+    <!-- Recent Applicants & Quick Actions -->
     <div class="col-lg-4">
         <div class="card-glass h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-users"></i>Recent Users</h5>
+                <h5 class="mb-0"><i class="fas fa-users"></i>Recent Applicants</h5>
                 <a href="{{ route('admin.users') }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-list-ul me-1"></i> View All
                 </a>
             </div>
             <div class="card-body p-0">
-                <div class="quick-actions p-3 bg-light-subtle border-bottom">
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <a href="#" class="quick-action-btn">
-                                <i class="fas fa-user-plus"></i>
-                                <span>Add User</span>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="#" class="quick-action-btn">
-                                <i class="fas fa-file-import"></i>
-                                <span>Import Data</span>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="#" class="quick-action-btn">
-                                <i class="fas fa-envelope"></i>
-                                <span>Send Email</span>
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ route('admin.quizzes.index') }}" class="quick-action-btn">
-                                <i class="fas fa-question-circle"></i>
-                                <span>Quiz Management</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
                 <ul class="list-group list-group-flush">
                     @forelse($recentUsers ?? [] as $user)
                     <li class="list-group-item d-flex justify-content-between align-items-start p-3">
@@ -761,19 +745,13 @@
                                     <small class="text-info d-block">Age: {{ \Carbon\Carbon::parse($user->birth_date)->age }} years</small>
                                 @endif
                                 <div class="mt-1">
-                                    @if(isset($user->roles) && (is_object($user->roles) ? $user->roles->count() > 0 : count($user->roles) > 0))
-                                        @foreach($user->roles as $role)
-                                        <span class="badge bg-primary">{{ ucfirst($role->name ?? 'Unknown') }}</span>
-                                        @endforeach
-                                    @else
-                                        <span class="badge bg-secondary">No role</span>
-                                    @endif
+                                    <span class="badge bg-primary">Applicant</span>
                                 </div>
                             </div>
                         </div>
                         <div class="ms-2">
                             @if(isset($user->id))
-                            <a href="{{ route('admin.users') }}?user={{ $user->id }}" class="btn btn-sm btn-outline-primary rounded-circle" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; padding: 0;">
+                            <a href="{{ route('admin.users.show', $user->id) }}" class="btn btn-sm btn-outline-primary rounded-circle" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; padding: 0;">
                                 <i class="fas fa-eye"></i>
                             </a>
                             @else
@@ -789,8 +767,8 @@
                             <div style="width: 60px; height: 60px; background: rgba(79, 70, 229, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
                                 <i class="fas fa-user-plus" style="font-size: 24px; color: var(--primary);"></i>
                             </div>
-                            <p class="text-muted mb-0">No recent users found</p>
-                            <p class="text-muted small">New users will appear here</p>
+                            <p class="text-muted mb-0">No recent applicants found</p>
+                            <p class="text-muted small">New applicants will appear here</p>
                         </div>
                     </li>
                     @endforelse

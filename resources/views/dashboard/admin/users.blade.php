@@ -1,11 +1,23 @@
 @extends('layouts.dashboard')
-@section('title', 'User Management')
-@section('page-title', 'User Management')
+@section('title', 'Applicant Management')
+@section('page-title', 'Applicant Management')
 @section('content')
+<style>
+    .dataTables_info,
+    .dataTables_paginate { display: none !important; }
+    .table + div:not(:has(.pagination)) { display: none; }
+    /* Reduce extra spacing at bottom if any */
+    .card .table { margin-bottom: 0; }
+    .card .mt-3 { margin-top: 0.75rem !important; }
+    .pagination { margin-bottom: 0; }
+    .container { padding-bottom: 1rem; }
+    .card-body { padding-bottom: 1rem; }
+    .p-3.border-top ~ * { display: none; }
+</style>
 <div class="container">
-    <h2 class="mb-4">Manage Users & Roles</h2>
+    <h2 class="mb-4">Manage Applicants</h2>
     <div class="mb-3 d-flex justify-content-end">
-        <a href="{{ route('admin.create-user') }}" class="btn btn-primary">Create Privileged User</a>
+        <a href="{{ route('admin.dashboard') }}" class="btn btn-secondary me-2">Back to Dashboard</a>
     </div>
     <div class="card mb-4">
         <div class="card-body">
@@ -14,37 +26,42 @@
                     <tr>
                         <th>Name</th>
                         <th>Email</th>
-                        <th>Current Role(s)</th>
-                        <th>Assign Role</th>
+                        <th>Phone</th>
+                        <th>Registration Date</th>
+                        <th>Applications</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($users as $user)
+                    @forelse($users as $user)
                     <tr>
                         <td>{{ $user->name }}</td>
                         <td>{{ $user->email }}</td>
+                        <td>{{ $user->phone ?? 'Not provided' }}</td>
+                        <td>{{ $user->created_at ? $user->created_at->format('M d, Y') : 'Unknown' }}</td>
                         <td>
-                            @foreach($user->roles as $role)
-                                <span class="badge bg-primary">{{ ucfirst($role->name) }}</span>
-                            @endforeach
+                            <span class="badge bg-primary">{{ $user->applications ? $user->applications->count() : 0 }} applications</span>
                         </td>
                         <td>
-                            <form action="{{ route('admin.assign-role', $user) }}" method="POST" class="d-flex align-items-center gap-2">
-                                @csrf
-                                <select name="role" class="form-select form-select-sm" style="width:auto;">
-                                    @foreach($roles as $role)
-                                        <option value="{{ $role->name }}" @if($user->roles->contains('name', $role->name)) selected @endif>{{ ucfirst($role->name) }}</option>
-                                    @endforeach
-                                </select>
-                                <button type="submit" class="btn btn-sm btn-success">Assign</button>
-                            </form>
+                            <a href="{{ route('admin.users.show', $user->id) }}" class="btn btn-sm btn-outline-primary me-2">
+                                <i class="fas fa-eye"></i> View Profile
+                            </a>
                         </td>
                     </tr>
-                    @endforeach
+                    @empty
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="d-flex flex-column align-items-center">
+                                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                <p class="text-muted mb-0">No applicants found</p>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforelse
                 </tbody>
             </table>
-            <div class="mt-3">
-                {{ $users->links() }}
+            <div class="mt-3 d-flex justify-content-center">
+                {{ $users->onEachSide(1)->links() }}
             </div>
         </div>
     </div>

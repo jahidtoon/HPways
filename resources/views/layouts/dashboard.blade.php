@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title') - Horizon Pathways</title>
     
     <!-- Bootstrap CSS -->
@@ -30,7 +31,16 @@
             background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             min-height: 100vh;
+            overscroll-behavior-x: none; /* prevent back/forward swipe overlay */
+            overflow-x: hidden; /* avoid accidental horizontal scroll */
+            touch-action: pan-y; /* allow vertical scroll only */
         }
+
+        /* Defensive: prevent any oversized decorative icons from leaking between pages */
+        .icon-bg { display: none !important; }
+        i.fas, i.far, i.fal, i.fad, i.fab { font-size: 1rem; line-height: 1; }
+        i[class^="fa-"]::before, i[class*=" fa-"]::before { font-size: 1em; }
+    .main-content { overflow-x: hidden; overscroll-behavior: contain; }
         
         /* Sidebar Styles */
         .sidebar {
@@ -169,6 +179,24 @@
         }
         
         .sidebar-heading:first-child {
+            margin-top: 0;
+        }
+        
+        /* Nav Section Titles */
+        .nav-section-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #6c757d;
+            font-weight: 700;
+            padding: 1rem 1.5rem 0.5rem;
+            margin: 0.5rem 0 0;
+            display: block;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .nav-section-title:first-child {
+            border-top: none;
             margin-top: 0;
         }
         
@@ -461,21 +489,77 @@
                 @elseif($userRole === 'case_manager')
                     <!-- Case Manager Menu -->
                     <li class="nav-item">
-                        <a href="{{ route('dashboard.case-manager.index') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.*') ? 'active' : '' }}">
+                        <a href="{{ route('dashboard.case-manager.index') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.index') ? 'active' : '' }}">
                             <i class="fas fa-tachometer-alt"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
+                    
+                    <!-- Applications Management Section -->
+                    <li class="nav-item">
+                        <span class="nav-section-title">Applications</span>
+                    </li>
                     <li class="nav-item">
                         <a href="{{ route('dashboard.case-manager.applications') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.applications') ? 'active' : '' }}">
-                            <i class="fas fa-briefcase"></i>
-                            <span>Manage Cases</span>
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>My Applications</span>
                         </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('dashboard.case-manager.all-applications') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.all-applications') ? 'active' : '' }}">
+                            <i class="fas fa-list-alt"></i>
+                            <span>All Applications</span>
+                        </a>
+                    </li>
+                    
+                    <!-- Team Management Section -->
+                    <li class="nav-item">
+                        <span class="nav-section-title">Team</span>
                     </li>
                     <li class="nav-item">
                         <a href="{{ route('dashboard.case-manager.attorneys') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.attorneys') ? 'active' : '' }}">
                             <i class="fas fa-user-tie"></i>
                             <span>Attorneys</span>
+                        </a>
+                    </li>
+                    
+                    <!-- Reports Section -->
+                    <li class="nav-item">
+                        <span class="nav-section-title">Reports</span>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('dashboard.case-manager.reports') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.reports') ? 'active' : '' }}">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('dashboard.case-manager.analytics') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.analytics') ? 'active' : '' }}">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                    
+                    <!-- Tools Section -->
+                    <li class="nav-item">
+                        <span class="nav-section-title">Tools</span>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('dashboard.case-manager.documents') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.documents') ? 'active' : '' }}">
+                            <i class="fas fa-folder-open"></i>
+                            <span>Document Manager</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('dashboard.case-manager.notifications') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.notifications') ? 'active' : '' }}">
+                            <i class="fas fa-bell"></i>
+                            <span>Notifications</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('dashboard.case-manager.settings') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.settings') ? 'active' : '' }}">
+                            <i class="fas fa-cog"></i>
+                            <span>Settings</span>
                         </a>
                     </li>
 
@@ -535,7 +619,7 @@
                             <span>Dashboard</span>
                         </a>
                     </li>
-                    
+
                     <li class="nav-item">
                         <a href="{{ route('admin.applications') }}" class="nav-link {{ request()->routeIs('admin.applications') ? 'active' : '' }}">
                             <i class="fas fa-clipboard-list"></i>
@@ -545,7 +629,7 @@
                     <li class="nav-item">
                         <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">
                             <i class="fas fa-users"></i>
-                            <span>All Users</span>
+                            <span>All Applicants</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -584,71 +668,14 @@
                             <span>Quiz Management</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-folder-open"></i>
-                            <span>Document Management</span>
-                        </a>
-                    </li>
-                    
+
                     <li class="nav-item">
                         <a href="#" class="nav-link">
                             <i class="fas fa-shipping-fast"></i>
                             <span>Shipment Tracking</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-tasks"></i>
-                            <span>Workflow Status</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-bell"></i>
-                            <span>Notifications</span>
-                        </a>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a href="{{ route('admin.reports') }}" class="nav-link {{ request()->routeIs('admin.reports') ? 'active' : '' }}">
-                            <i class="fas fa-chart-bar"></i>
-                            <span>Reports & Analytics</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-chart-line"></i>
-                            <span>Performance Metrics</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-download"></i>
-                            <span>Data Export</span>
-                        </a>
-                    </li>
-                    
 
-                    
-                    <li class="nav-item">
-                        <a href="{{ route('admin.settings') }}" class="nav-link {{ request()->routeIs('admin.settings') ? 'active' : '' }}">
-                            <i class="fas fa-cog"></i>
-                            <span>System Settings</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-shield-alt"></i>
-                            <span>Security & Permissions</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-database"></i>
-                            <span>Database Management</span>
-                        </a>
-                    </li>
                     <li class="nav-item">
                         <a href="#" class="nav-link">
                             <i class="fas fa-history"></i>
@@ -701,7 +728,7 @@
                             <a href="#" class="btn btn-sm btn-outline-primary px-3">
                                 <i class="fas fa-user me-1"></i> Profile
                             </a>
-                            <a href="{{ route('logout') }}" class="btn btn-sm btn-outline-danger px-3">
+                            <a href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" class="btn btn-sm btn-outline-danger px-3">
                                 <i class="fas fa-sign-out-alt me-1"></i> Logout
                             </a>
                         </div>
@@ -753,6 +780,21 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Defensive runtime fix: clamp any stray giant icons (e.g., injected chevrons) inside content area
+            const clampStrayIcons = () => {
+                document.querySelectorAll('.main-content svg, .main-content i').forEach(el => {
+                    const rect = el.getBoundingClientRect();
+                    if (rect.width > 200 || rect.height > 200) {
+                        el.style.maxWidth = '120px';
+                        el.style.maxHeight = '120px';
+                        el.style.opacity = '0.08';
+                        el.style.pointerEvents = 'none';
+                    }
+                });
+            };
+            clampStrayIcons();
+            setTimeout(clampStrayIcons, 300);
+            setTimeout(clampStrayIcons, 1000);
             // Mobile sidebar toggle
             const navbarToggler = document.querySelector('.navbar-toggler');
             const sidebar = document.querySelector('.sidebar');
@@ -777,5 +819,10 @@
     <!-- Page specific scripts: support both section and stack -->
     @yield('scripts')
     @stack('scripts')
+    
+    <!-- Logout Form -->
+    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+        @csrf
+    </form>
 </body>
 </html>

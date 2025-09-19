@@ -4,6 +4,9 @@
 
 @section('styles')
 <style>
+    /* Defensive fixes to avoid oversized background icons leaking in */
+    .icon-bg { display: none !important; }
+    i.fas, i.far, i.fab { line-height: 1; }
     .card-glass {
         background: white;
         border-radius: 16px;
@@ -154,6 +157,12 @@
     .filter-dropdown .dropdown-toggle {
         border-radius: 20px;
     }
+
+    /* Keep Laravel pagination; hide any plugin-generated duplicates (e.g., DataTables) */
+    .dataTables_info,
+    .dataTables_paginate { display: none !important; }
+    /* Also hide stray pagination blocks not using Bootstrap .pagination */
+    .table + div:not(:has(.pagination)) { display: none; }
 </style>
 @endsection
 
@@ -281,8 +290,8 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="p-3 border-top">
-                        {{ $applications->links() }}
+                    <div class="p-3 border-top d-flex justify-content-center">
+                        {{ $applications->onEachSide(1)->links() }}
                     </div>
                 </div>
             </div>

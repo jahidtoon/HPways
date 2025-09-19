@@ -28,7 +28,14 @@ class User extends Authenticatable
     'birth_date',
     ];
 
+    // Applications relationship for applicants (user_id)
     public function applications(){ return $this->hasMany(Application::class); }
+    
+    // Cases managed by case manager (case_manager_id)
+    public function managedCases(){ return $this->hasMany(Application::class, 'case_manager_id'); }
+    
+    // Cases assigned to attorney (attorney_id)  
+    public function assignedCases(){ return $this->hasMany(Application::class, 'attorney_id'); }
 
     /**
      * The attributes that should be hidden for serialization.

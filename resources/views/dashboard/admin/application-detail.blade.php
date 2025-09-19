@@ -166,13 +166,18 @@
             <div class="card mb-4">
                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Document Status</h5>
-                    <span class="badge bg-light text-dark">{{ count($application->documents ?? []) }}/{{ count($requiredDocuments) }} Submitted</span>
+                    @php
+                        $requiredCodes = collect($requiredDocuments ?? [])->pluck('code')->filter()->values();
+                        $uploadedCodes = collect($application->documents ?? [])->pluck('type')->filter()->unique();
+                        $submittedCount = $uploadedCodes->intersect($requiredCodes)->count();
+                    @endphp
+                    <span class="badge bg-light text-dark">{{ $submittedCount }}/{{ count($requiredDocuments ?? []) }} Submitted</span>
                 </div>
                 <div class="card-body">
                     @if(count($requiredDocuments) > 0)
                         @foreach($requiredDocuments as $reqDoc)
                             @php
-                                $uploaded = collect($application->documents ?? [])->firstWhere('document_type', $reqDoc->code);
+                                $uploaded = collect($application->documents ?? [])->firstWhere('type', $reqDoc->code);
                             @endphp
                             <div class="document-item {{ $uploaded ? 'uploaded' : 'missing' }}">
                                 <div class="d-flex justify-content-between align-items-center">
@@ -314,28 +319,6 @@
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="card mb-4">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-outline-primary action-btn" onclick="sendNotification()">
-                            <i class="fas fa-bell me-2"></i>Send Notification
-                        </button>
-                        <button class="btn btn-outline-info action-btn" onclick="generateReport()">
-                            <i class="fas fa-file-pdf me-2"></i>Generate Report
-                        </button>
-                        <button class="btn btn-outline-warning action-btn" onclick="addNote()">
-                            <i class="fas fa-sticky-note me-2"></i>Add Note
-                        </button>
-                        <button class="btn btn-outline-success action-btn" onclick="exportData()">
-                            <i class="fas fa-download me-2"></i>Export Data
-                        </button>
-                    </div>
-                </div>
-            </div>
 
             <!-- Activity Timeline -->
             <div class="card">
@@ -365,7 +348,7 @@
                     @foreach($application->documents ?? [] as $doc)
                     <div class="timeline-item">
                         <h6 class="mb-1">Document Uploaded</h6>
-                        <small class="text-muted">{{ $doc->document_type }} - {{ $doc->created_at ? $doc->created_at->format('M d, Y') : '' }}</small>
+                        <small class="text-muted">{{ $doc->type }} - {{ $doc->created_at ? $doc->created_at->format('M d, Y') : '' }}</small>
                     </div>
                     @endforeach
                 </div>

@@ -232,7 +232,7 @@
 							</a>
 						</li>
 						<li class="nav-item ms-lg-2">
-							<a href="{{ route('logout') }}" class="btn btn-sm btn-outline-primary">Logout</a>
+							<a href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" class="btn btn-sm btn-outline-primary">Logout</a>
 						</li>
 						@endauth
 					</ul>
@@ -289,5 +289,10 @@
 	</footer>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 	@stack('scripts')
+	
+	<!-- Logout Form -->
+	<form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+		@csrf
+	</form>
 </body>
 </html>

@@ -211,7 +211,7 @@ class AdminDashboardController extends Controller
             $application = Application::with([
                 'user', 
                 'documents', 
-                'feedback', 
+                'feedback.attorney', 
                 'payments',
                 'caseManager', 
                 'attorney',
@@ -372,7 +372,7 @@ class AdminDashboardController extends Controller
     public function caseManagers()
     {
         try {
-            $caseManagers = User::role('case_manager')->with('applications')->paginate(15);
+            $caseManagers = User::role('case_manager')->with('managedCases')->paginate(15);
             $totalCases = Application::whereNotNull('case_manager_id')->count();
             
             return view('dashboard.admin.case-managers', compact('caseManagers', 'totalCases'));
@@ -392,21 +392,178 @@ class AdminDashboardController extends Controller
     public function attorneys()
     {
         try {
-            $attorneys = User::role('attorney')->with('applications')->paginate(15);
-            $totalCases = Application::whereNotNull('attorney_id')->count();
+            // Define active statuses - cases that are not completed, rejected, or on hold
+            $activeStatuses = [
+                'draft', 'pending', 'in_progress', 'document_review', 'pending_review', 
+                'ready_for_attorney_review', 'assigned_to_attorney', 'under_attorney_review',
+                'attorney_feedback_provided', 'rfe_issued', 'ready_to_file', 'filed',
+                'ready', 'ready_to_submit', 'to_print', 'printing', 'printed'
+            ];
+
+            $attorneys = User::role('attorney')
+                ->withCount([
+                    // Total assigned cases to the attorney
+                    'assignedCases as total_assigned_cases',
+                    // Active cases = cases that are not completed/rejected/closed
+                    'assignedCases as active_cases_count' => function ($q) use ($activeStatuses) {
+                        $q->whereIn('status', $activeStatuses);
+                    },
+                    // Pending review cases specifically assigned to attorney
+                    'assignedCases as pending_review_count' => function ($q) {
+                        $q->whereIn('status', ['assigned_to_attorney', 'under_attorney_review']);
+                    },
+                    // Completed cases (approved/rejected)
+                    'assignedCases as completed_cases_count' => function ($q) {
+                        $q->whereIn('status', ['approved', 'rejected', 'closed']);
+                    }
+                ])
+                ->paginate(15);
+
+            // Totals for stats cards
+            $totalAssignedCases = Application::whereNotNull('attorney_id')->count();
+            $totalActiveCases = Application::whereNotNull('attorney_id')
+                ->whereIn('status', $activeStatuses)
+                ->count();
             
-            return view('dashboard.admin.attorneys', compact('attorneys', 'totalCases'));
+            return view('dashboard.admin.attorneys', compact('attorneys', 'totalAssignedCases', 'totalActiveCases'));
         } catch (\Exception $e) {
             // Create empty collection for fallback
             $attorneys = new \Illuminate\Pagination\LengthAwarePaginator(
                 collect([]), 0, 15, 1, ['path' => request()->url()]
             );
             return view('dashboard.admin.attorneys', [
-                'attorneys' => $attorneys, 
-                'totalCases' => 0,
+                'attorneys' => $attorneys,
+                'totalAssignedCases' => 0,
+                'totalActiveCases' => 0,
                 'error' => 'Could not load attorneys: ' . $e->getMessage()
             ]);
         }
+    }
+
+    public function viewAttorney(User $user)
+    {
+        if (!$user->hasRole('attorney')) {
+            abort(404, 'Attorney not found');
+        }
+
+        $activeStatuses = [
+            'draft', 'pending', 'in_progress', 'document_review', 'pending_review', 
+            'ready_for_attorney_review', 'assigned_to_attorney', 'under_attorney_review',
+            'attorney_feedback_provided', 'rfe_issued', 'ready_to_file', 'filed',
+            'ready', 'ready_to_submit', 'to_print', 'printing', 'printed'
+        ];
+
+        $assignedCases = $user->assignedCases()
+            ->with(['user', 'caseManager', 'documents'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        $stats = [
+            'total_cases' => $user->assignedCases()->count(),
+            'active_cases' => $user->assignedCases()->whereIn('status', $activeStatuses)->count(),
+            'pending_review' => $user->assignedCases()->whereIn('status', ['assigned_to_attorney', 'under_attorney_review'])->count(),
+            'completed_cases' => $user->assignedCases()->whereIn('status', ['approved', 'rejected', 'closed'])->count(),
+            'this_month_completed' => $user->assignedCases()->whereIn('status', ['approved', 'rejected'])
+                ->where('updated_at', '>=', now()->startOfMonth())->count(),
+        ];
+
+        return view('dashboard.admin.attorneys.view', compact('user', 'assignedCases', 'stats'));
+    }
+
+    public function attorneyCases(User $user, Request $request)
+    {
+        if (!$user->hasRole('attorney')) {
+            abort(404, 'Attorney not found');
+        }
+
+        $query = $user->assignedCases()
+            ->with(['user', 'caseManager', 'documents', 'payments']);
+
+        // Filter by status if provided
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $cases = $query->orderBy('created_at', 'desc')->paginate(20);
+
+        return view('dashboard.admin.attorneys.cases', compact('user', 'cases'));
+    }
+
+    public function attorneyPerformance(User $user)
+    {
+        if (!$user->hasRole('attorney')) {
+            abort(404, 'Attorney not found');
+        }
+
+        // Performance metrics for the last 12 months
+        $monthlyStats = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $monthlyStats[] = [
+                'month' => $month->format('M Y'),
+                'approved' => $user->assignedCases()
+                    ->where('status', 'approved')
+                    ->whereYear('updated_at', $month->year)
+                    ->whereMonth('updated_at', $month->month)
+                    ->count(),
+                'rejected' => $user->assignedCases()
+                    ->where('status', 'rejected')
+                    ->whereYear('updated_at', $month->year)
+                    ->whereMonth('updated_at', $month->month)
+                    ->count(),
+            ];
+        }
+
+        $overallStats = [
+            'total_approved' => $user->assignedCases()->where('status', 'approved')->count(),
+            'total_rejected' => $user->assignedCases()->where('status', 'rejected')->count(),
+            'average_resolution_days' => 0, // TODO: Calculate based on created_at vs updated_at
+            'approval_rate' => 0,
+        ];
+
+        $totalCompleted = $overallStats['total_approved'] + $overallStats['total_rejected'];
+        if ($totalCompleted > 0) {
+            $overallStats['approval_rate'] = round(($overallStats['total_approved'] / $totalCompleted) * 100, 1);
+        }
+
+        return view('dashboard.admin.attorneys.performance', compact('user', 'monthlyStats', 'overallStats'));
+    }
+
+    public function suspendAttorney(User $user)
+    {
+        if (!$user->hasRole('attorney')) {
+            abort(404, 'Attorney not found');
+        }
+
+        $user->update(['is_suspended' => true]);
+        
+        return redirect()->route('admin.attorneys')
+            ->with('success', 'Attorney has been suspended successfully.');
+    }
+
+    public function activateAttorney(User $user)
+    {
+        if (!$user->hasRole('attorney')) {
+            abort(404, 'Attorney not found');
+        }
+
+        $user->update(['is_suspended' => false]);
+        
+        return redirect()->route('admin.attorneys')
+            ->with('success', 'Attorney has been activated successfully.');
+    }
+
+    public function resetAttorneyPassword(User $user)
+    {
+        if (!$user->hasRole('attorney')) {
+            abort(404, 'Attorney not found');
+        }
+
+        $newPassword = 'password123'; // In production, generate a secure random password
+        $user->update(['password' => bcrypt($newPassword)]);
+        
+        return redirect()->route('admin.attorneys.view', $user)
+            ->with('success', "Password reset successfully. New password: {$newPassword}");
     }
     
     public function printingStaff()
@@ -432,16 +589,18 @@ class AdminDashboardController extends Controller
     public function createCaseManager(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'first_name' => 'nullable|string|max:255',
-            'last_name' => 'nullable|string|max:255',
             'username' => 'nullable|string|max:255|unique:users,username',
         ]);
 
+        // Create full name from first and last name
+        $fullName = trim($request->first_name . ' ' . $request->last_name);
+
         $user = User::create([
-            'name' => $request->name,
+            'name' => $fullName,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'first_name' => $request->first_name,
@@ -485,7 +644,29 @@ class AdminDashboardController extends Controller
         try {
             $application = Application::findOrFail($applicationId);
             $application->assigned_printer_id = $request->printer_id;
+            // If not already in or beyond the print pipeline, auto-queue it
+            $pipelineStatuses = ['in_print_queue','printing','printed','ready_to_ship','shipped','delivered'];
+            $shouldQueue = !in_array($application->status, $pipelineStatuses, true);
+            if ($shouldQueue) {
+                $application->status = 'in_print_queue';
+            }
             $application->save();
+
+            // Create tracking event noting assignment (and queueing if applicable)
+            try {
+                \App\Models\TrackingEvent::create([
+                    'application_id' => $application->id,
+                    'event_type' => $shouldQueue ? 'assigned_printer_and_queued' : 'assigned_printer',
+                    'description' => ($shouldQueue
+                        ? 'Printer assigned and application moved to print queue.'
+                        : 'Printer assigned to application.') . ' Printer ID: ' . $request->printer_id,
+                    'user_id' => auth()->id(),
+                    'event_time' => now(),
+                    'occurred_at' => now()
+                ]);
+            } catch (\Throwable $e) {
+                // Non-fatal if tracking event fails
+            }
             
             return redirect()->back()->with('success', 'Printer assigned successfully.');
         } catch (\Exception $e) {
@@ -541,6 +722,179 @@ class AdminDashboardController extends Controller
         $user->assignRole('printing_department');
 
         return redirect()->route('admin.printing-staff')->with('success', 'Printing Staff created successfully.');
+    }
+
+    public function editPrintingStaff($id)
+    {
+        try {
+            $staff = User::findOrFail($id);
+            
+            // Verify user has printing_department role
+            if (!$staff->hasRole('printing_department')) {
+                return response()->json(['error' => 'User is not a printing department staff member.'], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'id' => $staff->id,
+                'name' => $staff->name,
+                'email' => $staff->email,
+                'username' => $staff->username ?? '',
+                'first_name' => $staff->first_name ?? '',
+                'last_name' => $staff->last_name ?? '',
+                'status' => $staff->is_active ?? true
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to load staff information: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updatePrintingStaff(Request $request, $id)
+    {
+        try {
+            $staff = User::findOrFail($id);
+
+            // Verify user has printing_department role
+            if (!$staff->hasRole('printing_department')) {
+                return response()->json(['error' => 'User is not a printing department staff member.'], 400);
+            }
+
+            $rules = [
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email,' . $id,
+                'first_name' => 'nullable|string|max:255',
+                'last_name' => 'nullable|string|max:255',
+                'username' => 'nullable|string|max:255|unique:users,username,' . $id,
+                'status' => 'required|in:active,inactive'
+            ];
+
+            // Add password validation only if password is provided
+            if ($request->filled('password')) {
+                $rules['password'] = 'required|confirmed|min:8';
+            }
+
+            $validated = $request->validate($rules);
+
+            $updateData = [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'username' => $validated['username'],
+                'is_active' => $validated['status'] === 'active'
+            ];
+
+            // Only update password if provided
+            if ($request->filled('password')) {
+                $updateData['password'] = Hash::make($validated['password']);
+            }
+
+            $staff->update($updateData);
+
+            // Return JSON response for AJAX
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Printing Staff updated successfully.',
+                    'staff' => [
+                        'id' => $staff->id,
+                        'name' => $staff->name,
+                        'email' => $staff->email,
+                        'username' => $staff->username,
+                        'is_active' => $staff->is_active
+                    ]
+                ]);
+            }
+
+            return redirect()->route('admin.printing-staff')->with('success', 'Printing Staff updated successfully.');
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'Validation failed',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            return back()->withErrors($e->errors())->withInput();
+            
+        } catch (\Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'Failed to update staff: ' . $e->getMessage()
+                ], 500);
+            }
+            return back()->with('error', 'Failed to update staff: ' . $e->getMessage());
+        }
+    }
+
+    public function togglePrintingStaffStatus($id)
+    {
+        $staff = User::findOrFail($id);
+        
+        if (!$staff->hasRole('printing_department')) {
+            return response()->json(['error' => 'User is not a printing department staff member.'], 400);
+        }
+
+        $newStatus = !($staff->is_active ?? true);
+        $staff->update(['is_active' => $newStatus]);
+
+        return response()->json([
+            'success' => true,
+            'status' => $newStatus ? 'active' : 'inactive',
+            'message' => 'Status updated successfully.'
+        ]);
+    }
+
+    public function deletePrintingStaff($id)
+    {
+        $staff = User::findOrFail($id);
+        
+        if (!$staff->hasRole('printing_department')) {
+            return response()->json(['error' => 'User is not a printing department staff member.'], 400);
+        }
+
+        // Check if staff has any pending print jobs
+        $pendingJobs = Application::where('assigned_printer_id', $staff->id)
+            ->whereIn('status', ['in_print_queue', 'printing'])
+            ->count();
+
+        if ($pendingJobs > 0) {
+            return response()->json([
+                'error' => 'Cannot delete staff member with pending print jobs. Please reassign jobs first.'
+            ], 400);
+        }
+
+        $staff->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Printing staff member deleted successfully.'
+        ]);
+    }
+
+    public function assignPrintingJobs(Request $request, $staffId)
+    {
+        $request->validate([
+            'application_ids' => 'required|array',
+            'application_ids.*' => 'exists:applications,id'
+        ]);
+
+        $staff = User::findOrFail($staffId);
+        
+        if (!$staff->hasRole('printing_department')) {
+            return response()->json(['error' => 'User is not a printing department staff member.'], 400);
+        }
+
+        $updated = Application::whereIn('id', $request->application_ids)
+            ->whereIn('status', ['in_print_queue', 'approved'])
+            ->update(['assigned_printer_id' => $staffId]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Assigned {$updated} print jobs to {$staff->name}."
+        ]);
     }
     
     // =================== Packages Management ===================
@@ -1090,13 +1444,90 @@ class AdminDashboardController extends Controller
             return redirect()->route('admin.case-managers')->with('error', 'User is not a case manager.');
         }
         
-        // Get case manager's statistics
-        $totalCases = $user->applications()->count();
-        $activeCases = $user->applications()->whereIn('status', ['pending', 'in_progress', 'document_review'])->count();
-        $completedCases = $user->applications()->where('status', 'completed')->count();
-        $recentCases = $user->applications()->with('user')->latest()->limit(10)->get();
+        // Get case manager's statistics using managedCases relationship
+        $totalCases = $user->managedCases()->count();
+        $activeCases = $user->managedCases()->whereIn('status', ['pending', 'in_progress', 'document_review', 'pending_review'])->count();
+        $completedCases = $user->managedCases()->where('status', 'completed')->count();
+        $recentCases = $user->managedCases()->with('user')->latest()->limit(10)->get();
         
-        return view('dashboard.admin.case-managers.view', compact('user', 'totalCases', 'activeCases', 'completedCases', 'recentCases'));
+        // Additional statistics for the dashboard
+        $pendingCases = $user->managedCases()->where('status', 'pending')->count();
+        $thisMonthCases = $user->managedCases()
+            ->whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->count();
+
+        $completedThisMonth = $user->managedCases()
+            ->where('status', 'completed')
+            ->whereYear('updated_at', now()->year)
+            ->whereMonth('updated_at', now()->month)
+            ->count();
+
+        // For processed count, consider any status change this month
+        $processedThisMonth = $user->managedCases()
+            ->whereYear('updated_at', now()->year)
+            ->whereMonth('updated_at', now()->month)
+            ->count();
+
+        $avgProcessingDays = $this->calculateAverageProcessingTime($user->id);
+        
+        // Recent activity - get recently updated/created cases
+        $recentActivity = $user->managedCases()
+            ->select('id', 'status', 'updated_at', 'created_at')
+            ->latest('updated_at')
+            ->limit(4)
+            ->get()
+            ->map(function($case) {
+                $action = 'Updated case';
+                $timeAgo = $case->updated_at->diffForHumans();
+                $color = 'info';
+                
+                if ($case->status === 'completed') {
+                    $action = 'Completed case';
+                    $color = 'success';
+                } elseif ($case->created_at->eq($case->updated_at)) {
+                    $action = 'Assigned new case';
+                    $color = 'warning';
+                } elseif ($case->status === 'in_progress') {
+                    $action = 'Started processing';
+                    $color = 'primary';
+                }
+                
+                return [
+                    'id' => $case->id,
+                    'action' => $action,
+                    'time' => $timeAgo,
+                    'color' => $color
+                ];
+            });
+        
+        return view('dashboard.admin.case-managers.view', compact(
+            'user', 'totalCases', 'activeCases', 'completedCases', 'recentCases', 
+            'pendingCases', 'thisMonthCases', 'completedThisMonth', 'processedThisMonth',
+            'avgProcessingDays', 'recentActivity'
+        ));
+    }
+    
+    private function calculateAverageProcessingTime($caseManagerId)
+    {
+        $completedCases = Application::where('case_manager_id', $caseManagerId)
+            ->where('status', 'completed')
+            ->whereNotNull('submitted_at')
+            ->get();
+        
+        if ($completedCases->count() === 0) {
+            return 0;
+        }
+        
+        $totalDays = 0;
+        foreach ($completedCases as $case) {
+            $submittedAt = $case->submitted_at;
+            $completedAt = $case->updated_at;
+            $days = $submittedAt->diffInDays($completedAt);
+            $totalDays += $days;
+        }
+        
+        return round($totalDays / $completedCases->count(), 1);
     }
     
     public function editCaseManager(User $user)

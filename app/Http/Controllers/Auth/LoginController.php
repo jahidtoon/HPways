@@ -52,6 +52,9 @@ class LoginController extends Controller
         if ($user->hasRole('attorney')) {
             return redirect()->intended('/attorney');
         }
+        if ($user->hasRole('printing_department')) {
+            return redirect()->intended('/dashboard/printing-department');
+        }
         if ($user->hasRole('printing')) {
             return redirect()->intended('/dashboard/printing');
         }

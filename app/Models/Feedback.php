@@ -14,4 +14,6 @@ class Feedback extends Model
     ];
     public function application(){ return $this->belongsTo(Application::class); }
     public function attorney(){ return $this->belongsTo(User::class,'attorney_id'); }
+    // Alias to support $feedback->user in views
+    public function user(){ return $this->belongsTo(User::class,'attorney_id'); }
 }

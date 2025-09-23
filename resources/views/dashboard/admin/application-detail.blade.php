@@ -110,6 +110,7 @@
     <div class="row">
         <!-- Left Column -->
         <div class="col-lg-8">
+            @include('components.application.progress', ['application' => $application])
             <!-- Basic Information Card -->
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
@@ -181,14 +182,30 @@
                             @endphp
                             <div class="document-item {{ $uploaded ? 'uploaded' : 'missing' }}">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <div>
+                                    <div class="flex-grow-1">
                                         <h6 class="mb-1">{{ $reqDoc->label }}</h6>
                                         <small class="text-muted">{{ $reqDoc->required ? 'Required' : 'Optional' }} • {{ $reqDoc->translation_possible ? 'Translation available' : 'No translation needed' }}</small>
+                                        @if($uploaded)
+                                            <br><small class="text-info"><i class="fas fa-file me-1"></i>{{ $uploaded->original_name ?? 'Document' }}</small>
+                                            @if(!$uploaded->stored_path)
+                                                <br><small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>No file path - view may not work</small>
+                                            @endif
+                                        @endif
                                     </div>
                                     <div class="text-end">
                                         @if($uploaded)
-                                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Uploaded</span>
-                                            <br><small class="text-muted">{{ $uploaded->created_at ? $uploaded->created_at->format('M d, Y') : '' }}</small>
+                                            <div class="mb-2">
+                                                <span class="badge bg-success"><i class="fas fa-check me-1"></i>Uploaded</span>
+                                                <br><small class="text-muted">{{ $uploaded->created_at ? $uploaded->created_at->format('M d, Y') : '' }}</small>
+                                            </div>
+                                            <div class="d-flex gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewDocument('{{ $uploaded->id }}', '{{ $reqDoc->label }}')">
+                                                    <i class="fas fa-eye me-1"></i>View
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-success" onclick="printDocument('{{ $uploaded->id }}')">
+                                                    <i class="fas fa-print me-1"></i>Print
+                                                </button>
+                                            </div>
                                         @else
                                             <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Missing</span>
                                         @endif
@@ -225,6 +242,58 @@
                             <i class="fas fa-exclamation-circle text-warning fs-1 mb-3"></i>
                             <h6>No Payments Made</h6>
                             <p class="text-muted">This application has no payment records yet.</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Attorney Feedback Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0"><i class="fas fa-comments me-2"></i>Attorney Feedback</h5>
+                </div>
+                <div class="card-body">
+                    @if(count($application->feedback ?? []) > 0)
+                        @foreach($application->feedback->sortByDesc('created_at') as $feedback)
+                            <div class="feedback-item p-3 mb-3 rounded shadow-sm" style="background: {{ $feedback->type == 'approval' ? 'rgba(16, 185, 129, 0.1)' : ($feedback->type == 'rejection' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(78, 115, 223, 0.1)') }}; border-left: 4px solid {{ $feedback->type == 'approval' ? '#10b981' : ($feedback->type == 'rejection' ? '#ef4444' : '#4e73df') }};">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="d-flex align-items-center">
+                                        @if($feedback->type == 'approval')
+                                            <span class="badge bg-success me-2"><i class="fas fa-check me-1"></i>Approved</span>
+                                        @elseif($feedback->type == 'rejection')
+                                            <span class="badge bg-danger me-2"><i class="fas fa-times me-1"></i>Rejected</span>
+                                        @elseif($feedback->type == 'rfe')
+                                            <span class="badge bg-warning me-2"><i class="fas fa-exclamation-triangle me-1"></i>RFE</span>
+                                        @elseif($feedback->type == 'document_issue')
+                                            <span class="badge bg-info me-2"><i class="fas fa-file-alt me-1"></i>Document Issue</span>
+                                        @else
+                                            <span class="badge bg-primary me-2"><i class="fas fa-comment me-1"></i>{{ ucfirst($feedback->type) }}</span>
+                                        @endif
+                                        <small class="text-muted">by {{ $feedback->attorney->name ?? 'Attorney' }}</small>
+                                    </div>
+                                    <small class="text-muted">{{ $feedback->created_at ? $feedback->created_at->format('M d, Y \a\t H:i') : '' }}</small>
+                                </div>
+                                <p class="mb-0" style="font-size: 0.9rem;">{{ $feedback->content }}</p>
+                                
+                                @if($feedback->type == 'rfe' || $feedback->type == 'document_issue')
+                                    @if($feedback->requested_documents && count($feedback->requested_documents) > 0)
+                                        <div class="mt-2 p-2 rounded" style="background: rgba(255, 255, 255, 0.7);">
+                                            <small class="text-muted d-block mb-1"><i class="fas fa-file-alt me-1"></i>Requested Documents:</small>
+                                            <ul class="mb-0 ps-3">
+                                                @foreach($feedback->requested_documents as $doc)
+                                                    <li><small class="fw-semibold">{{ $doc }}</small></li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endif
+                                @endif
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="text-center py-4">
+                            <i class="fas fa-comments fa-2x text-muted mb-2"></i>
+                            <h6>No Attorney Feedback</h6>
+                            <p class="text-muted">No feedback has been provided by the assigned attorney yet.</p>
                         </div>
                     @endif
                 </div>
@@ -357,6 +426,34 @@
     </div>
 </div>
 
+<!-- Document Viewer Modal -->
+<div class="modal fade" id="documentViewerModal" tabindex="-1" aria-labelledby="documentViewerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="documentViewerModalLabel">
+                    <i class="fas fa-file-alt me-2"></i>Document Viewer
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="documentContent" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading document...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" id="printDocumentBtn">
+                    <i class="fas fa-print me-1"></i>Print Document
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Status Update Form -->
 <form id="statusUpdateForm" action="{{ route('admin.update-application-status', $application->id) }}" method="POST" style="display: none;">
     @csrf
@@ -391,9 +488,89 @@ function exportData() {
     alert('Export feature will be implemented.');
 }
 
-// Auto-refresh badge colors on page load
+// Document viewing and printing functions
+let currentDocumentId = null;
+
+function viewDocument(documentId, documentName) {
+    currentDocumentId = documentId;
+    const modal = new bootstrap.Modal(document.getElementById('documentViewerModal'));
+    const modalTitle = document.getElementById('documentViewerModalLabel');
+    const documentContent = document.getElementById('documentContent');
+    
+    // Update modal title
+    modalTitle.innerHTML = '<i class="fas fa-file-alt me-2"></i>' + documentName;
+    
+    // Show loading spinner
+    documentContent.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading document...</p>
+        </div>
+    `;
+    
+    // Show modal
+    modal.show();
+    
+    // Load document content
+    fetch('/view-document.php?id=' + documentId)
+        .then(response => response.text())
+        .then(html => {
+            documentContent.innerHTML = html;
+        })
+        .catch(error => {
+            documentContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Error Loading Document</h5>
+                    <p>Unable to load the document. Please try again later.</p>
+                    <small class="text-muted">Error: ${error.message}</small>
+                </div>
+            `;
+        });
+}
+
+function printDocument(documentId) {
+    if (documentId) {
+        // Open document in new window for printing
+        const printWindow = window.open('/view-document.php?id=' + documentId + '&print=1', '_blank', 'width=800,height=600');
+        
+        // Wait for content to load, then trigger print
+        printWindow.onload = function() {
+            setTimeout(() => {
+                printWindow.print();
+                // Close window after printing (optional)
+                printWindow.onafterprint = function() {
+                    printWindow.close();
+                };
+            }, 1000); // Increased delay to ensure content loads
+        };
+        
+        // Fallback if onload doesn't work
+        setTimeout(() => {
+            if (printWindow && !printWindow.closed) {
+                try {
+                    printWindow.print();
+                } catch (e) {
+                    console.log('Print fallback triggered');
+                }
+            }
+        }, 1500);
+    } else {
+        alert('No document selected for printing.');
+    }
+}
+
+// Print button handler in modal
 document.addEventListener('DOMContentLoaded', function() {
-    // Add any initialization code here
+    const printBtn = document.getElementById('printDocumentBtn');
+    if (printBtn) {
+        printBtn.addEventListener('click', function() {
+            if (currentDocumentId) {
+                printDocument(currentDocumentId);
+            }
+        });
+    }
 });
 </script>
 @endsection

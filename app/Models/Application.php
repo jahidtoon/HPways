@@ -10,13 +10,15 @@ class Application extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id','visa_type','selected_package_id','status','progress_pct','payment_status','submitted_at','missing_documents','intake_history','case_manager_id','attorney_id','assigned_printer_id'
+        'user_id','visa_type','selected_package_id','status','progress_pct','payment_status','submitted_at','missing_documents','intake_history','case_manager_id','attorney_id','assigned_printer_id','printing_started_at','printed_at'
     ];
 
     protected $casts = [
         'missing_documents' => 'array',
         'intake_history' => 'array',
         'submitted_at' => 'datetime',
+        'printing_started_at' => 'datetime',
+        'printed_at' => 'datetime',
     ];
 
     public function user(){ return $this->belongsTo(User::class); }

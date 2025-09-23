@@ -73,6 +73,8 @@
 
 <div class="row">
     <div class="col-md-8">
+        @php($application = $case)
+        @include('components.application.progress', ['application' => $application])
         <div class="card card-glass">
             <div class="card-header bg-white">
                 <h5 class="mb-0"><i class="fas fa-file-alt text-primary me-2"></i>Application Status</h5>
@@ -308,18 +310,35 @@
 
 
 
-        @if(isset($case->feedback) && $case->feedback)
         <div class="card card-glass">
             <div class="card-header bg-white">
                 <h5 class="mb-0"><i class="fas fa-comments text-info me-2"></i>Attorney Feedback</h5>
             </div>
             <div class="card-body">
-                <div class="p-3 bg-light rounded">
-                    <p class="mb-0">{{ $case->feedback }}</p>
-                </div>
+                @if($case->feedback && $case->feedback->count() > 0)
+                    @foreach($case->feedback->sortByDesc('created_at') as $feedback)
+                        <div class="p-3 bg-light rounded mb-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <strong>{{ $feedback->attorney->name ?? 'Attorney' }}</strong>
+                                    <span class="badge bg-{{ $feedback->type == 'approval' ? 'success' : ($feedback->type == 'rejection' ? 'danger' : 'info') }} ms-2">
+                                        {{ ucfirst($feedback->type ?? 'feedback') }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ $feedback->created_at->format('M d, Y H:i') }}</small>
+                            </div>
+                            <p class="mb-0">{{ $feedback->content }}</p>
+                        </div>
+                    @endforeach
+                @else
+                    <div class="text-center py-4">
+                        <i class="fas fa-comment-slash fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No feedback available yet.</p>
+                        <small class="text-muted">Attorney feedback will appear here when available.</small>
+                    </div>
+                @endif
             </div>
         </div>
-        @endif
     </div>
     
     <div class="col-md-4">
@@ -344,49 +363,7 @@
             </form>
         </div>
         @endif
-        
-        <div class="action-box">
-            <h5 class="mb-3">Request Documents</h5>
-            <form action="{{ route('case-manager.request-documents', $case->id) }}" method="POST">
-                @csrf
-                <div class="mb-3">
-                    <label for="documents" class="form-label">Documents Needed</label>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="birth_certificate" id="doc1" name="documents[]">
-                        <label class="form-check-label" for="doc1">
-                            Birth Certificate
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="bank_statements" id="doc2" name="documents[]">
-                        <label class="form-check-label" for="doc2">
-                            Bank Statements
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="passport" id="doc3" name="documents[]">
-                        <label class="form-check-label" for="doc3">
-                            Passport Copy
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="photos" id="doc4" name="documents[]">
-                        <label class="form-check-label" for="doc4">
-                            Passport Photos
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="message" class="form-label">Message to Applicant</label>
-                    <textarea class="form-control" id="message" name="message" rows="3"></textarea>
-                </div>
-                
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-warning">Request Documents</button>
-                </div>
-            </form>
-        </div>
+
     </div>
 </div>
 @endsection

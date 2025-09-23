@@ -76,9 +76,7 @@
                         {{ auth()->user()->name ?? 'User' }}
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ route('dashboard.applicant.settings') }}">
-                            <i class="fas fa-cog me-2"></i>Settings
-                        </a></li>
+                        {{-- Settings removed as per request --}}
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ route('logout') }}"
                                onclick="event.preventDefault(); document.getElementById('logout-form').submit();">

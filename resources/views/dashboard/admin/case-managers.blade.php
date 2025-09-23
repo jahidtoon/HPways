@@ -1,7 +1,7 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Case Managers Management')
-@section('page-title', 'Case Managers Management')
+@section('title', 'Case Managers')
+@section('page-title', 'Case Managers')
 
 @section('content')
 <div class="container-fluid">
@@ -129,7 +129,7 @@
                                 <td>{{ $manager->email }}</td>
                                 <td>{{ $manager->username ?? 'N/A' }}</td>
                                 <td>
-                                    <span class="badge bg-info">{{ $manager->applications->count() ?? 0 }}</span>
+                                    <span class="badge bg-info">{{ $manager->managedCases->count() ?? 0 }}</span>
                                 </td>
                                 <td>{{ $manager->created_at->format('M d, Y') }}</td>
                                 <td>
@@ -212,10 +212,6 @@
                             <label for="last_name" class="form-label">Last Name</label>
                             <input type="text" class="form-control" id="last_name" name="last_name" required>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Full Name</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
                     </div>
                     <div class="mb-3">
                         <label for="email" class="form-label">Email</label>

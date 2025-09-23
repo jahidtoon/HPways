@@ -280,9 +280,6 @@
                                             <a href="{{ route('admin.application-detail', $app->id) }}" class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-eye me-1"></i> View
                                             </a>
-                                            <button class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-ellipsis-h"></i>
-                                            </button>
                                         </div>
                                     </td>
                                 </tr>

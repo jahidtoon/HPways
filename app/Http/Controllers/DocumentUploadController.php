@@ -8,24 +8,84 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class DocumentUploadController extends Controller
 {
     public function index(Application $application)
     {
-    $this->authorize('view', $application);
-        $docs = $application->documents()->latest()->get()->map(fn($d)=>[
-            'id'=>$d->id,
-            'type'=>$d->type,
-            'original_name'=>$d->original_name,
-            'size_bytes'=>$d->size_bytes,
-            'mime'=>$d->mime,
-            'status'=>$d->status,
-            'needs_translation'=>$d->needs_translation,
-            'translation_status'=>$d->translation_status,
-            'created_at'=>$d->created_at->toDateTimeString(),
-        ]);
-        return response()->json(['documents'=>$docs]);
+        $this->authorize('view', $application);
+        // Serve JSON for API/AJAX clients; otherwise redirect to the Upload Documents UI.
+        if (request()->wantsJson() || str_contains(request()->header('Accept',''), 'application/json')) {
+            $docs = $application->documents()->latest()->get()->map(fn($d)=>[
+                'id'=>$d->id,
+                'type'=>$d->type,
+                'original_name'=>$d->original_name,
+                'size_bytes'=>$d->size_bytes,
+                'mime'=>$d->mime,
+                'status'=>$d->status,
+                'needs_translation'=>$d->needs_translation,
+                'translation_status'=>$d->translation_status,
+                'created_at'=>$d->created_at->toDateTimeString(),
+            ]);
+            return response()->json(['documents'=>$docs]);
+        }
+    // Build required/optional like ApplicantController::uploadDocuments and render the same Blade
+        $currentApplication = $application->loadMissing('selectedPackage');
+        $uploadedTypes = $currentApplication->documents()->pluck('type')->filter()->map(fn($t)=>strtoupper($t))->unique();
+        $required = [];
+        $optional = [];
+
+        // Package-specific required docs first
+        if (Schema::hasTable('package_required_documents') && $currentApplication->selectedPackage) {
+            try {
+                $rows = $currentApplication->selectedPackage->requiredDocuments()->where('active',true)->get();
+                foreach($rows as $r){
+                    $item = [
+                        'code'=>strtoupper($r->code),
+                        'label'=>$r->label,
+                        'required'=>(bool)$r->required,
+                        'translation_possible'=>(bool)($r->translation_possible ?? false),
+                        'uploaded'=>$uploadedTypes->contains(strtoupper($r->code)),
+                    ];
+                    if ($r->required) { $required[] = $item; } else { $optional[] = $item; }
+                }
+            } catch (\Throwable $e) { /* ignore and fall back */ }
+        }
+
+        // Visa-type fallback (DB or config)
+        if (empty($required) && empty($optional)) {
+            $visa = $currentApplication->visa_type;
+            $rows = collect();
+            if ($visa && Schema::hasTable('required_documents')) {
+                try {
+                    $rows = \App\Models\RequiredDocument::where('visa_type',$visa)->where('active',true)->get()
+                        ->map(fn($r)=>[
+                            'code'=>strtoupper($r->code),
+                            'label'=>$r->label,
+                            'required'=>(bool)$r->required,
+                            'translation_possible'=>(bool)($r->translation_possible ?? false),
+                        ]);
+                } catch (\Throwable $e) { $rows = collect(); }
+            }
+            if ($rows->isEmpty() && $visa) {
+                $rows = collect(config('required_documents.'.strtoupper($visa), []));
+            }
+            foreach($rows as $r){
+                $code = strtoupper($r['code'] ?? '');
+                if(!$code) continue;
+                $item = [
+                    'code'=>$code,
+                    'label'=>$r['label'] ?? $code,
+                    'required'=>(bool)($r['required'] ?? false),
+                    'translation_possible'=>(bool)($r['translation_possible'] ?? false),
+                    'uploaded'=>$uploadedTypes->contains($code),
+                ];
+                if ($item['required']) { $required[] = $item; } else { $optional[] = $item; }
+            }
+        }
+
+        return view('dashboard.applicant.upload-documents', compact('currentApplication','required','optional'));
     }
 
     public function store(Request $request, Application $application)
@@ -53,10 +113,16 @@ class DocumentUploadController extends Controller
             'status' => 'pending',
             'needs_translation' => $request->boolean('needs_translation'),
         ]);
-        return response()->json([
-            'id'=>$doc->id,
-            'message'=>'Uploaded',
-        ],201);
+        // If the client expects JSON (AJAX/API), return JSON; otherwise redirect back to the upload UI with a flash message
+        if ($request->wantsJson() || str_contains($request->header('Accept',''), 'application/json')) {
+            return response()->json([
+                'id'=>$doc->id,
+                'message'=>'Uploaded',
+            ],201);
+        }
+        return redirect()
+            ->route('applications.documents.index', $application->id)
+            ->with('success', 'Document uploaded successfully.');
     }
 
     public function updateTranslationStatus(Request $request, Application $application, Document $document)

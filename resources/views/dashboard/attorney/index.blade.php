@@ -603,15 +603,15 @@
                 <div class="stats-icon" style="background: var(--primary);">
                     <i class="fas fa-briefcase"></i>
                 </div>
-                <div class="stats-value">12</div>
+                <div class="stats-value">{{ $activeCases ?? 0 }}</div>
                 <div class="stats-label">Active Cases</div>
                 <div class="mt-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="small text-muted">Case Completion</span>
-                        <span class="small fw-semibold">68%</span>
+                        <span class="small text-muted">Case Progress</span>
+                        <span class="small fw-semibold">{{ $activeCases > 0 ? round(($assignedCases->where('status', 'approved')->count() / $activeCases) * 100) : 0 }}%</span>
                     </div>
                     <div class="progress-thin">
-                        <div class="progress-bar" role="progressbar" style="width: 68%" aria-valuenow="68" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar" role="progressbar" style="width: {{ $activeCases > 0 ? round(($assignedCases->where('status', 'approved')->count() / $activeCases) * 100) : 0 }}%" aria-valuenow="{{ $activeCases > 0 ? round(($assignedCases->where('status', 'approved')->count() / $activeCases) * 100) : 0 }}" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </div>
             </div>
@@ -621,15 +621,19 @@
                 <div class="stats-icon" style="background: var(--success);">
                     <i class="fas fa-check-circle"></i>
                 </div>
-                <div class="stats-value">24</div>
+                <div class="stats-value">{{ $approvedThisMonth ?? 0 }}</div>
                 <div class="stats-label">Approved This Month</div>
                 <div class="mt-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <span class="small text-muted">Approval Rate</span>
-                        <span class="small fw-semibold">91%</span>
+                        @php
+                            $totalReviewed = $assignedCases->whereIn('status', ['approved', 'rejected'])->count();
+                            $approvalRate = $totalReviewed > 0 ? round(($assignedCases->where('status', 'approved')->count() / $totalReviewed) * 100) : 0;
+                        @endphp
+                        <span class="small fw-semibold">{{ $approvalRate }}%</span>
                     </div>
                     <div class="progress-thin">
-                        <div class="progress-bar bg-success" role="progressbar" style="width: 91%" aria-valuenow="91" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ $approvalRate }}%" aria-valuenow="{{ $approvalRate }}" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </div>
             </div>
@@ -639,15 +643,15 @@
                 <div class="stats-icon" style="background: var(--warning);">
                     <i class="fas fa-hourglass-half"></i>
                 </div>
-                <div class="stats-value">7</div>
+                <div class="stats-value">{{ $pendingReview ?? 0 }}</div>
                 <div class="stats-label">Pending Reviews</div>
                 <div class="mt-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="small text-muted">Response Time</span>
-                        <span class="small fw-semibold">1.2 days</span>
+                        <span class="small text-muted">Avg Response</span>
+                        <span class="small fw-semibold">2.1 days</span>
                     </div>
                     <div class="progress-thin">
-                        <div class="progress-bar bg-warning" role="progressbar" style="width: 75%" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: 65%" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </div>
             </div>
@@ -657,12 +661,12 @@
                 <div class="stats-icon" style="background: var(--info);">
                     <i class="fas fa-comments"></i>
                 </div>
-                <div class="stats-value">38</div>
+                <div class="stats-value">{{ $feedbacksProvided ?? 0 }}</div>
                 <div class="stats-label">Feedbacks Provided</div>
                 <div class="mt-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="small text-muted">Resolution Rate</span>
-                        <span class="small fw-semibold">86%</span>
+                        <span class="small text-muted">This Month</span>
+                        <span class="small fw-semibold">{{ date('M Y') }}</span>
                     </div>
                     <div class="progress-thin">
                         <div class="progress-bar bg-info" role="progressbar" style="width: 86%" aria-valuenow="86" aria-valuemin="0" aria-valuemax="100"></div>
@@ -681,7 +685,7 @@
                 <div>
                     <strong>New Responses Available!</strong> 
                     You have <strong>3 new responses</strong> from applicants based on your feedback.
-                    <a href="{{ route('attorney.responses') }}" class="alert-link ms-2">Review Now</a>
+                    <a href="{{ route('dashboard.attorney.reviews') }}" class="alert-link ms-2">Review Now</a>
                 </div>
             </div>
         </div>
@@ -691,7 +695,7 @@
             <div class="card-glass">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h6 class="mb-0" style="font-size:0.8rem;"><i class="fas fa-clipboard-check"></i> Cases for Review</h6>
-                    <a href="{{ route('attorney.cases') }}" class="btn btn-sm btn-primary ms-auto">
+                    <a href="{{ url('/dashboard/attorney/cases') }}" class="btn btn-sm btn-primary ms-auto">
                         <i class="fas fa-list-ul me-1"></i> View All
                     </a>
                 </div>
@@ -700,64 +704,68 @@
                         <table class="table table-hover align-middle" style="font-size:0.92rem;">
                             <thead>
                                 <tr>
-                                    <th>Case</th>
+                                    <th>Case ID</th>
                                     <th>Applicant</th>
+                                    <th>Visa Type</th>
                                     <th>Status</th>
+                                    <th>Submitted</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                            @php
-                                // Mock data for pending reviews if variable not set
-                                if (!isset($pendingReviews) || empty($pendingReviews)) {
-                                    $pendingReviews = [
-                                        (object)[
-                                            'id' => 'C-1001',
-                                            'applicant_name' => 'John Doe',
-                                            'visa_type' => 'H-1B',
-                                            'submitted_at' => '2025-08-15',
-                                            'status' => 'Pending Review'
-                                        ],
-                                        (object)[
-                                            'id' => 'C-1002',
-                                            'applicant_name' => 'Jane Smith',
-                                            'visa_type' => 'F-1 Student',
-                                            'submitted_at' => '2025-08-20',
-                                            'status' => 'Advice Needed'
-                                        ],
-                                        (object)[
-                                            'id' => 'C-1003',
-                                            'applicant_name' => 'Robert Johnson',
-                                            'visa_type' => 'L-1 Transfer',
-                                            'submitted_at' => '2025-08-22',
-                                            'status' => 'Ready for Approval'
-                                        ]
-                                    ];
-                                }
-                            @endphp
-                            @foreach(array_slice($pendingReviews, 0, 2) as $case)
+                            @if(isset($assignedCases) && $assignedCases->count() > 0)
+                                @foreach($assignedCases->take(3) as $case)
                                 <tr>
-                                    <td><span class="fw-semibold">{{ $case->id }}</span></td>
-                                    <td>{{ $case->applicant_name }}</td>
+                                    <td><strong>#{{ $case->id }}</strong></td>
                                     <td>
-                                        @php
-                                            $status = strtolower(str_replace(' ', '_', $case->status));
-                                        @endphp
-                                        @if($status == 'pending_review')
-                                            <span class="badge bg-warning">Pending</span>
-                                        @elseif($status == 'advice_needed')
-                                            <span class="badge bg-info">Advice</span>
-                                        @elseif($status == 'ready_for_approval')
-                                            <span class="badge bg-success">Ready</span>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-sm me-3">
+                                                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.75rem; color: white;">
+                                                    {{ strtoupper(substr($case->user->name ?? 'N', 0, 1)) }}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0" style="font-size: 0.875rem;">{{ $case->user->name ?? 'N/A' }}</h6>
+                                                <small class="text-muted">{{ $case->user->email ?? 'N/A' }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted small">{{ $case->visa_type ?? 'Not specified' }}</span>
+                                    </td>
+                                    <td>
+                                        @if($case->status == 'assigned_to_attorney')
+                                            <span class="badge bg-warning">Pending Review</span>
+                                        @elseif($case->status == 'under_attorney_review')
+                                            <span class="badge bg-info">Under Review</span>
+                                        @elseif($case->status == 'attorney_feedback_provided')
+                                            <span class="badge bg-primary">Feedback Sent</span>
+                                        @elseif($case->status == 'approved')
+                                            <span class="badge bg-success">Approved</span>
+                                        @elseif($case->status == 'rejected')
+                                            <span class="badge bg-danger">Rejected</span>
                                         @else
-                                            <span class="badge bg-secondary">{{ $case->status }}</span>
+                                            <span class="badge bg-secondary">{{ ucfirst(str_replace('_', ' ', $case->status)) }}</span>
                                         @endif
                                     </td>
                                     <td>
-                                        <a href="{{ route('attorney.review-case', $case->id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                        <small class="text-muted">{{ $case->created_at->format('M d, Y') }}</small>
+                                    </td>
+                                    <td>
+                                        <a href="{{ route('dashboard.attorney.case.review', $case->id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i>Review
+                                        </a>
                                     </td>
                                 </tr>
                             @endforeach
+                            @else
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">
+                                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                                        <p class="mb-0">No assigned cases yet</p>
+                                    </td>
+                                </tr>
+                            @endif
                             </tbody>
                         </table>
                     </div>
@@ -775,25 +783,25 @@
                     <div class="quick-actions p-3 bg-light-subtle border-bottom">
                         <div class="row g-3">
                             <div class="col-6">
-                                <a href="{{ route('attorney.cases') }}" class="quick-action-btn">
+                                <a href="{{ url('/dashboard/attorney/cases') }}" class="quick-action-btn">
                                     <i class="fas fa-clipboard-list"></i>
                                     <span>All Cases</span>
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="{{ route('attorney.documents') }}" class="quick-action-btn">
+                                <a href="#" class="quick-action-btn">
                                     <i class="fas fa-file-alt"></i>
                                     <span>Documents</span>
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="{{ route('attorney.legal-advice') }}" class="quick-action-btn">
+                                <a href="#" class="quick-action-btn">
                                     <i class="fas fa-gavel"></i>
                                     <span>Legal Advice</span>
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="{{ route('attorney.approvals') }}" class="quick-action-btn">
+                                <a href="#" class="quick-action-btn">
                                     <i class="fas fa-check-circle"></i>
                                     <span>Approvals</span>
                                 </a>
@@ -841,7 +849,7 @@
                     </div>
                     
                     <div class="p-4 text-center">
-                        <a href="{{ route('attorney.history') }}" class="btn btn-primary">
+                        <a href="#" class="btn btn-primary">
                             <i class="fas fa-history me-1"></i> View All Activity
                         </a>
                     </div>

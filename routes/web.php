@@ -86,7 +86,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/support', [App\Http\Controllers\ApplicantController::class, 'support'])->name('support');
         Route::get('/settings', [App\Http\Controllers\ApplicantController::class, 'settings'])->name('settings');
         Route::get('/reports', [App\Http\Controllers\ApplicantController::class, 'reports'])->name('reports');
+
+        // Applicant meetings
+        Route::get('/meetings', [App\Http\Controllers\MeetingsController::class, 'applicantIndex'])->name('meetings.index');
     });
+
+    // Shared progress endpoints (auth required)
+    Route::post('/applications/{application}/progress/mark-printed', [App\Http\Controllers\ApplicationProgressController::class, 'markPrinted']);
+    Route::post('/applications/{application}/progress/mark-delivered', [App\Http\Controllers\ApplicationProgressController::class, 'markDelivered']);
+    Route::post('/applications/{application}/progress/confirm-received', [App\Http\Controllers\ApplicationProgressController::class, 'confirmReceived']);
     
     // Case Manager Dashboard Routes
     Route::prefix('dashboard/case-manager')->name('dashboard.case-manager.')->middleware(['auth', 'role:case_manager'])->group(function() {
@@ -100,6 +108,14 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/case/{id}/request-documents', [App\Http\Controllers\CaseManagerController::class, 'requestDocuments'])->name('case.request-documents');
         Route::post('/case/{id}/mark-ready', [App\Http\Controllers\CaseManagerController::class, 'markReady'])->name('mark-ready');
         Route::get('/attorneys', [App\Http\Controllers\CaseManagerController::class, 'attorneys'])->name('attorneys');
+
+        // Case manager meetings
+        Route::get('/meetings', [App\Http\Controllers\MeetingsController::class, 'caseManagerIndex'])->name('meetings.index');
+        Route::get('/meetings/{meeting}/schedule', [App\Http\Controllers\MeetingsController::class, 'editSchedule'])->name('meetings.schedule');
+        Route::post('/meetings/{meeting}/schedule', [App\Http\Controllers\MeetingsController::class, 'updateSchedule'])->name('meetings.schedule.update');
+        Route::post('/meetings/{meeting}/approve', [App\Http\Controllers\MeetingsController::class, 'approve'])->name('meetings.approve');
+        Route::post('/meetings/{meeting}/decline', [App\Http\Controllers\MeetingsController::class, 'decline'])->name('meetings.decline');
+        Route::post('/meetings/{meeting}/cancel', [App\Http\Controllers\MeetingsController::class, 'cancel'])->name('meetings.cancel');
         
         // Reports & Analytics
         Route::get('/reports', [App\Http\Controllers\CaseManagerController::class, 'reports'])->name('reports');
@@ -121,6 +137,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/case/{id}/approve', [App\Http\Controllers\AttorneyController::class, 'approveApplication'])->name('case.approve');
         Route::post('/case/{id}/reject', [App\Http\Controllers\AttorneyController::class, 'rejectApplication'])->name('case.reject');
         Route::get('/reviews', [App\Http\Controllers\AttorneyController::class, 'reviews'])->name('reviews');
+
+        // Attorney meetings
+        Route::get('/meetings', [App\Http\Controllers\MeetingsController::class, 'attorneyIndex'])->name('meetings.index');
+        Route::post('/case/{id}/meetings/request', [App\Http\Controllers\MeetingsController::class, 'storeRequest'])->name('meetings.request');
+        Route::post('/meetings/{meeting}/cancel', [App\Http\Controllers\MeetingsController::class, 'cancel'])->name('meetings.cancel');
     });
     
     // Printing Department Dashboard Routes
@@ -150,6 +171,11 @@ Route::prefix('admin')->name('admin.')->group(function() {
     Route::post('/case-managers/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'createCaseManager'])->name('case-managers.create');
     Route::post('/attorneys/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'createAttorney'])->name('attorneys.create');
     Route::post('/printing-staff/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'createPrintingStaff'])->name('printing-staff.create');
+    Route::get('/printing-staff/{id}/edit', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'editPrintingStaff'])->name('printing-staff.edit');
+    Route::put('/printing-staff/{id}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'updatePrintingStaff'])->name('printing-staff.update');
+    Route::post('/printing-staff/{id}/toggle-status', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'togglePrintingStaffStatus'])->name('printing-staff.toggle-status');
+    Route::delete('/printing-staff/{id}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'deletePrintingStaff'])->name('printing-staff.delete');
+    Route::post('/printing-staff/{id}/assign-jobs', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'assignPrintingJobs'])->name('printing-staff.assign-jobs');
     
 
 
@@ -178,6 +204,9 @@ Route::prefix('admin')->name('admin.')->group(function() {
     Route::get('/quizzes/get-nodes', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'getQuizNodes'])->name('quizzes.get-nodes');
     Route::post('/quizzes/save-flowchart', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'saveQuizFlowchart'])->name('quizzes.save-flowchart');
     Route::get('/api/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'getPackagesByVisaType'])->name('api.packages');
+
+    // Meetings (Admin)
+    Route::get('/meetings', [App\Http\Controllers\MeetingsController::class, 'adminIndex'])->name('meetings.index');
 });
 
 // Formerly protected workflow routes (now public)
@@ -224,6 +253,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     
     // Staff Management
     Route::get('/case-managers', [AdminDashboardController::class, 'caseManagers'])->name('case-managers');
+    Route::post('/case-managers/create', [AdminDashboardController::class, 'createCaseManager'])->name('case-managers.create');
     Route::get('/case-managers/{user}', [AdminDashboardController::class, 'viewCaseManager'])->name('case-managers.view');
     Route::get('/case-managers/{user}/edit', [AdminDashboardController::class, 'editCaseManager'])->name('case-managers.edit');
     Route::put('/case-managers/{user}', [AdminDashboardController::class, 'updateCaseManager'])->name('case-managers.update');
@@ -231,7 +261,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('/case-managers/{user}/suspend', [AdminDashboardController::class, 'suspendCaseManager'])->name('case-managers.suspend');
     Route::post('/case-managers/{user}/activate', [AdminDashboardController::class, 'activateCaseManager'])->name('case-managers.activate');
     Route::post('/case-managers/{user}/reset-password', [AdminDashboardController::class, 'resetCaseManagerPassword'])->name('case-managers.reset-password');
+    
+    // Attorney Management Routes
     Route::get('/attorneys', [AdminDashboardController::class, 'attorneys'])->name('attorneys');
+    Route::get('/attorneys/{user}', [AdminDashboardController::class, 'viewAttorney'])->name('attorneys.view');
+    Route::get('/attorneys/{user}/edit', [AdminDashboardController::class, 'editAttorney'])->name('attorneys.edit');
+    Route::put('/attorneys/{user}', [AdminDashboardController::class, 'updateAttorney'])->name('attorneys.update');
+    Route::get('/attorneys/{user}/cases', [AdminDashboardController::class, 'attorneyCases'])->name('attorneys.cases');
+    Route::get('/attorneys/{user}/performance', [AdminDashboardController::class, 'attorneyPerformance'])->name('attorneys.performance');
+    Route::post('/attorneys/{user}/suspend', [AdminDashboardController::class, 'suspendAttorney'])->name('attorneys.suspend');
+    Route::post('/attorneys/{user}/activate', [AdminDashboardController::class, 'activateAttorney'])->name('attorneys.activate');
+    Route::post('/attorneys/{user}/reset-password', [AdminDashboardController::class, 'resetAttorneyPassword'])->name('attorneys.reset-password');
     
     // Application Management
     Route::get('/applications', [AdminDashboardController::class, 'applications'])->name('applications');
@@ -267,11 +307,20 @@ Route::prefix('printing')->name('printing.')->group(function() {
     Route::post('/{application}/mark-printing', [App\Http\Controllers\PrintingDepartmentController::class, 'markAsPrinting'])->name('mark-printing');
     Route::post('/{application}/mark-printed', [App\Http\Controllers\PrintingDepartmentController::class, 'markAsPrinted'])->name('mark-printed');
     Route::post('/bulk-print', [App\Http\Controllers\PrintingDepartmentController::class, 'bulkPrint'])->name('bulk-print');
+    Route::post('/auto-add-approved', [App\Http\Controllers\PrintingDepartmentController::class, 'autoAddApproved'])->name('auto-add');
+    Route::post('/sync-assigned', [App\Http\Controllers\PrintingDepartmentController::class, 'syncAssignedToQueue'])->name('sync-assigned');
     
     // Shipping Operations
     Route::post('/prepare-shipment', [App\Http\Controllers\PrintingDepartmentController::class, 'prepareShipment'])->name('prepare-shipment');
     Route::post('/shipment/{shipment}/ship', [App\Http\Controllers\PrintingDepartmentController::class, 'ship'])->name('ship');
     Route::post('/shipment/{shipment}/update-tracking', [App\Http\Controllers\PrintingDepartmentController::class, 'updateTrackingStatus'])->name('update-tracking');
+    Route::get('/shipment/{shipment}/tracking', [App\Http\Controllers\PrintingDepartmentController::class, 'tracking'])->name('tracking');
+
+    // Printer-specific application detail view (documents only)
+    Route::middleware(['auth','role:printing_department'])->group(function() {
+        Route::get('/applications/{id}', [App\Http\Controllers\PrintingDepartmentController::class, 'viewApplication'])
+            ->name('applications.view');
+    });
     
     // Legacy dashboard routes
     Route::prefix('dashboard/printing')->name('dashboard.')->group(function() {
@@ -287,6 +336,17 @@ Route::prefix('printing')->name('printing.')->group(function() {
     Route::get('/lockbox', [LockboxSearchController::class, 'index'])->name('lockbox.index');
     Route::post('/lockbox/search', [LockboxSearchController::class, 'search'])->name('lockbox.search');
 });
+
+// Printing Department Dashboard Routes (proper URL structure)
+Route::prefix('dashboard/printing-department')->name('dashboard.printing-department.')->middleware(['auth', 'role:printing_department'])->group(function() {
+    Route::get('/', [App\Http\Controllers\PrintingDepartmentController::class, 'index'])->name('index');
+    Route::get('/queue', [App\Http\Controllers\PrintingDepartmentController::class, 'printQueue'])->name('queue');
+    Route::get('/management', [App\Http\Controllers\PrintingDepartmentController::class, 'management'])->name('management');
+    Route::get('/shipping', [App\Http\Controllers\PrintingDepartmentController::class, 'shipping'])->name('shipping');
+    Route::get('/analytics', [App\Http\Controllers\PrintingDepartmentController::class, 'analytics'])->name('analytics');
+    Route::get('/documents', [App\Http\Controllers\PrintingDepartmentController::class, 'documents'])->name('documents');
+});
+
 // Case Manager Routes
 Route::prefix('case-manager')->name('case-manager.')->group(function() {
     Route::get('/', [App\Http\Controllers\CaseManagerController::class, 'index'])->name('index');
@@ -300,6 +360,47 @@ Route::prefix('case-manager')->name('case-manager.')->group(function() {
 
 Route::get('/case-manager', function () {
     return redirect()->route('case-manager.dashboard');
+});
+
+// Redirect old printing department URLs (preserve legacy route names used in layouts)
+Route::get('/dashboard/printing', function () {
+    return redirect()->route('dashboard.printing-department.index');
+})->name('dashboard.printing.index');
+
+Route::get('/printing', function () {
+    return redirect('/dashboard/printing-department');
+});
+
+// Temporary test route to check Print Manager login
+Route::get('/test-print-manager', function () {
+    $user = \App\Models\User::where('name', 'Print Manager')->first();
+    if ($user) {
+        \Auth::login($user);
+        
+        // Debug info
+        $debug = [
+            'user_logged_in' => \Auth::check(),
+            'user_id' => \Auth::id(),
+            'user_name' => \Auth::user() ? \Auth::user()->name : 'No user',
+            'user_roles' => \Auth::user() ? \Auth::user()->getRoleNames()->toArray() : [],
+            'has_printing_department_role' => \Auth::user() ? \Auth::user()->hasRole('printing_department') : false,
+            'redirect_url' => '/dashboard/printing-department'
+        ];
+        
+        return response()->json($debug);
+    }
+    return 'Print Manager not found';
+});
+
+// Debug route to check current authentication status
+Route::get('/debug-auth', function () {
+    return response()->json([
+        'authenticated' => \Auth::check(),
+        'user_id' => \Auth::id(),
+        'user_name' => \Auth::user() ? \Auth::user()->name : null,
+        'user_roles' => \Auth::user() ? \Auth::user()->getRoleNames() : [],
+        'session_id' => session()->getId(),
+    ]);
 });
 
 // Attorney Dashboard Routes

@@ -86,7 +86,14 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="text-muted small">Tracking</div>
-                            <div class="fs-6 fw-semibold">{{ $trackingInfo ? $trackingInfo : 'N/A' }}</div>
+                            @if(!empty($trackingInfo))
+                                <div class="fs-6 fw-semibold">#{{ $trackingInfo }}</div>
+                                <div class="small text-muted text-capitalize">{{ str_replace('_',' ', $trackingStatus ?? '') }}</div>
+                            @elseif(!empty($trackingStatus))
+                                <div class="fs-6 fw-semibold">{{ $trackingStatus }}</div>
+                            @else
+                                <div class="fs-6 fw-semibold">N/A</div>
+                            @endif
                         </div>
                         <i class="fa-solid fa-truck-fast text-info fs-3"></i>
                     </div>

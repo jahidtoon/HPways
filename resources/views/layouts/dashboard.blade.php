@@ -40,7 +40,51 @@
         .icon-bg { display: none !important; }
         i.fas, i.far, i.fal, i.fad, i.fab { font-size: 1rem; line-height: 1; }
         i[class^="fa-"]::before, i[class*=" fa-"]::before { font-size: 1em; }
-    .main-content { overflow-x: hidden; overscroll-behavior: contain; }
+        .main-content { overflow-x: hidden; overscroll-behavior: contain; }
+        
+        /* Remove any demo/tutorial visual indicators */
+        .demo-arrow, .tutorial-arrow, .highlight-indicator, .guide-pointer,
+        .nav-item::after, .nav-link::after, [data-demo], [data-tutorial],
+        .demo-overlay, .tutorial-overlay { display: none !important; }
+        
+        /* Block all possible arrow/pointer indicators - AGGRESSIVE MODE */
+        * { 
+            --arrow-display: none !important;
+            --pointer-display: none !important;
+        }
+        *::before, *::after { 
+            content: none !important; 
+            display: none !important;
+            visibility: hidden !important;
+        }
+        .sidebar *, .nav-item *, .nav-link *,
+        .sidebar *::before, .sidebar *::after,
+        .nav-item::before, .nav-item::after,
+        .nav-link::before, .nav-link::after { 
+            display: block !important; 
+            content: "" !important; 
+        }
+        .sidebar *::before, .sidebar *::after,
+        .nav-item::before, .nav-item::after,
+        .nav-link::before, .nav-link::after { 
+            display: none !important; 
+            content: none !important; 
+            border: none !important;
+            background: transparent !important;
+        }
+        
+        /* Prevent external overlay elements */
+        div[style*="position: absolute"][style*="arrow"],
+        div[style*="position: fixed"][style*="arrow"],
+        div[style*="border-left"][style*="red"],
+        div[style*="border-right"][style*="red"],
+        div[style*="background: red"],
+        div[style*="background-color: red"],
+        [style*="border-color: red"],
+        [class*="arrow"], [class*="pointer"], [class*="highlight"] { 
+            display: none !important; 
+            visibility: hidden !important;
+        }
         
         /* Sidebar Styles */
         .sidebar {
@@ -240,8 +284,11 @@
         /* Main Content */
         .main-content {
             margin-left: 280px;
-            padding: 2rem;
+            padding: 1rem;
             transition: margin-left var(--transition-speed) ease;
+            width: calc(100% - 280px);
+            max-width: calc(100% - 280px);
+            box-sizing: border-box;
         }
         
         /* Top Navigation */
@@ -352,10 +399,21 @@
             
             .main-content {
                 margin-left: 0;
+                width: 100%;
+                max-width: 100%;
+                padding: 1rem 0.5rem;
             }
             
             .navbar-toggler {
                 display: block;
+            }
+        }
+        
+        @media (min-width: 992px) {
+            .main-content {
+                margin-left: 280px;
+                width: calc(100% - 280px);
+                max-width: calc(100% - 280px);
             }
         }
         
@@ -468,23 +526,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ route('dashboard.applicant.resources') }}" class="nav-link {{ request()->routeIs('dashboard.applicant.resources') ? 'active' : '' }}">
-                            <i class="fas fa-book"></i>
-                            <span>Resources</span>
+                        <a href="{{ route('dashboard.applicant.meetings.index') }}" class="nav-link {{ request()->routeIs('dashboard.applicant.meetings.*') ? 'active' : '' }}">
+                            <i class="fas fa-video"></i>
+                            <span>Meetings</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="{{ route('dashboard.applicant.support') }}" class="nav-link {{ request()->routeIs('dashboard.applicant.support') ? 'active' : '' }}">
-                            <i class="fas fa-headset"></i>
-                            <span>Support</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('dashboard.applicant.settings') }}" class="nav-link {{ request()->routeIs('dashboard.applicant.settings') ? 'active' : '' }}">
-                            <i class="fas fa-cog"></i>
-                            <span>Settings</span>
-                        </a>
-                    </li>
+                    {{-- Resources/Support/Settings removed as per request --}}
 
                 @elseif($userRole === 'case_manager')
                     <!-- Case Manager Menu -->
@@ -505,12 +552,12 @@
                             <span>My Applications</span>
                         </a>
                     </li>
-                    <li class="nav-item">
+                    {{-- <li class="nav-item">
                         <a href="{{ route('dashboard.case-manager.all-applications') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.all-applications') ? 'active' : '' }}">
                             <i class="fas fa-list-alt"></i>
                             <span>All Applications</span>
                         </a>
-                    </li>
+                    </li> --}}
                     
                     <!-- Team Management Section -->
                     <li class="nav-item">
@@ -522,8 +569,14 @@
                             <span>Attorneys</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ route('dashboard.case-manager.meetings.index') }}" class="nav-link {{ request()->routeIs('dashboard.case-manager.meetings.*') ? 'active' : '' }}">
+                            <i class="fas fa-video"></i>
+                            <span>Meetings</span>
+                        </a>
+                    </li>
                     
-                    <!-- Reports Section -->
+                    {{-- <!-- Reports Section -->
                     <li class="nav-item">
                         <span class="nav-section-title">Reports</span>
                     </li>
@@ -538,9 +591,9 @@
                             <i class="fas fa-chart-line"></i>
                             <span>Analytics</span>
                         </a>
-                    </li>
+                    </li> --}}
                     
-                    <!-- Tools Section -->
+                    {{-- <!-- Tools Section -->
                     <li class="nav-item">
                         <span class="nav-section-title">Tools</span>
                     </li>
@@ -561,26 +614,26 @@
                             <i class="fas fa-cog"></i>
                             <span>Settings</span>
                         </a>
-                    </li>
+                    </li> --}}
 
                 @elseif($userRole === 'attorney')
                     <!-- Attorney Menu -->
                     <li class="nav-item">
-                        <a href="{{ route('dashboard.attorney.index') }}" class="nav-link {{ request()->routeIs('dashboard.attorney.index') ? 'active' : '' }}">
+                        <a href="/dashboard/attorney" class="nav-link {{ request()->routeIs('dashboard.attorney.index') ? 'active' : '' }}">
                             <i class="fas fa-tachometer-alt"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ route('dashboard.attorney.cases') }}" class="nav-link {{ request()->routeIs('dashboard.attorney.cases') ? 'active' : '' }}">
+                        <a href="/dashboard/attorney/cases" class="nav-link">
                             <i class="fas fa-briefcase"></i>
                             <span>My Cases</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ route('dashboard.attorney.reviews') }}" class="nav-link {{ request()->routeIs('dashboard.attorney.reviews') ? 'active' : '' }}">
-                            <i class="fas fa-clipboard-check"></i>
-                            <span>Reviews & Feedback</span>
+                        <a href="{{ route('dashboard.attorney.meetings.index') }}" class="nav-link {{ request()->routeIs('dashboard.attorney.meetings.*') ? 'active' : '' }}">
+                            <i class="fas fa-video"></i>
+                            <span>Meetings</span>
                         </a>
                     </li>
 
@@ -668,6 +721,12 @@
                             <span>Quiz Management</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ route('admin.meetings.index') }}" class="nav-link {{ request()->routeIs('admin.meetings.*') ? 'active' : '' }}">
+                            <i class="fas fa-video"></i>
+                            <span>Meetings</span>
+                        </a>
+                    </li>
 
                     <li class="nav-item">
                         <a href="#" class="nav-link">
@@ -728,7 +787,7 @@
                             <a href="#" class="btn btn-sm btn-outline-primary px-3">
                                 <i class="fas fa-user me-1"></i> Profile
                             </a>
-                            <a href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" class="btn btn-sm btn-outline-danger px-3">
+                            <a href="/logout.php" class="btn btn-sm btn-outline-danger px-3">
                                 <i class="fas fa-sign-out-alt me-1"></i> Logout
                             </a>
                         </div>
@@ -780,6 +839,31 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Remove any arrow/pointer indicators
+            const removeArrowIndicators = () => {
+                // Remove elements with arrow/pointer classes
+                document.querySelectorAll('[class*="arrow"], [class*="pointer"], [class*="highlight"], [class*="demo"], [class*="tutorial"]').forEach(el => {
+                    el.remove();
+                });
+                
+                // Remove elements with red styling that might be arrows
+                document.querySelectorAll('div, span').forEach(el => {
+                    const style = el.getAttribute('style') || '';
+                    if (style.includes('red') && (style.includes('border') || style.includes('background'))) {
+                        el.remove();
+                    }
+                    if (style.includes('position: absolute') && style.includes('arrow')) {
+                        el.remove();
+                    }
+                });
+                
+                // Remove any pseudo-element content from navigation items
+                document.querySelectorAll('.nav-item, .nav-link').forEach(el => {
+                    el.style.setProperty('--after-content', 'none', 'important');
+                    el.style.setProperty('--before-content', 'none', 'important');
+                });
+            };
+            
             // Defensive runtime fix: clamp any stray giant icons (e.g., injected chevrons) inside content area
             const clampStrayIcons = () => {
                 document.querySelectorAll('.main-content svg, .main-content i').forEach(el => {
@@ -792,9 +876,24 @@
                     }
                 });
             };
+            
+            // Run cleanups
+            removeArrowIndicators();
             clampStrayIcons();
-            setTimeout(clampStrayIcons, 300);
-            setTimeout(clampStrayIcons, 1000);
+            setTimeout(() => {
+                removeArrowIndicators();
+                clampStrayIcons();
+            }, 300);
+            setTimeout(() => {
+                removeArrowIndicators();
+                clampStrayIcons();
+            }, 1000);
+            
+            // Set up observer to remove arrows if they're added dynamically
+            const observer = new MutationObserver(() => {
+                removeArrowIndicators();
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
             // Mobile sidebar toggle
             const navbarToggler = document.querySelector('.navbar-toggler');
             const sidebar = document.querySelector('.sidebar');

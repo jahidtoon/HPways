@@ -104,7 +104,7 @@
                                     <h6 class="mb-1">Application #{{ $application->id }}</h6>
                                     <small class="text-muted">Status: {{ ucfirst($application->status ?? 'pending') }}</small>
                                 </div>
-                                <a href="{{ route('admin.applications') }}?application={{ $application->id }}" class="btn btn-sm btn-outline-primary">
+                                <a href="{{ route('admin.application-detail', $application->id) }}" class="btn btn-sm btn-outline-primary">
                                     View Details
                                 </a>
                             </div>

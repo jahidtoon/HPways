@@ -26,6 +26,8 @@ class User extends Authenticatable
     'email',
     'password',
     'birth_date',
+    'is_suspended',
+    'is_active',
     ];
 
     // Applications relationship for applicants (user_id)
@@ -56,6 +58,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'birth_date' => 'date',
+        'is_suspended' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     /**

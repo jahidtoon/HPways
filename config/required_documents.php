@@ -27,8 +27,15 @@ return [
     ],
     'I751' => [
         ['code' => 'GREEN_CARD', 'label' => 'Front and back of conditional Green Card', 'required' => true, 'translation_possible' => false],
-        ['code' => 'JOINT_EVIDENCE', 'label' => 'Joint evidence (lease, bank, insurance)', 'required' => true, 'translation_possible' => true],
         ['code' => 'MARRIAGE_CERT', 'label' => 'Marriage certificate', 'required' => true, 'translation_possible' => true],
+        ['code' => 'JOINT_EVIDENCE', 'label' => 'Joint financial evidence (bank statements)', 'required' => true, 'translation_possible' => false],
+        ['code' => 'LEASE_AGREEMENT', 'label' => 'Joint lease/mortgage agreements', 'required' => false, 'translation_possible' => false],
+        ['code' => 'INSURANCE_DOCS', 'label' => 'Joint insurance policies', 'required' => false, 'translation_possible' => false],
+        ['code' => 'UTILITY_BILLS', 'label' => 'Joint utility bills', 'required' => false, 'translation_possible' => false],
+        ['code' => 'TAX_RETURNS', 'label' => 'Joint tax returns', 'required' => false, 'translation_possible' => false],
+        ['code' => 'BIRTH_CERT_CHILDREN', 'label' => 'Birth certificates of children (if any)', 'required' => false, 'translation_possible' => true],
+        ['code' => 'PHOTOS', 'label' => 'Family photos as evidence', 'required' => false, 'translation_possible' => false],
+        ['code' => 'AFFIDAVITS', 'label' => 'Affidavits from friends/family', 'required' => false, 'translation_possible' => false],
     ],
     'K1' => [
         ['code' => 'PETITIONER_ID', 'label' => 'Petitioner ID', 'required' => true, 'translation_possible' => false],

@@ -49,10 +49,21 @@ class ApplicantController extends Controller
             ->where('status', 'completed')
             ->exists();
             
-        // Get tracking information if available
-        $trackingInfo = null;
+        // Get tracking information if available (status + number)
+        $trackingInfo = null;         // e.g., tracking number
+        $trackingStatus = null;       // e.g., prepared/shipped/delivered
         if ($currentApplication && $currentApplication->shipment) {
             $trackingInfo = $currentApplication->shipment->tracking_number;
+            $trackingStatus = $currentApplication->shipment->status ?: null;
+        } else {
+            // If not yet shipped, summarize based on application status
+            $map = [
+                'in_print_queue' => 'Queued for printing',
+                'printing' => 'Printing in progress',
+                'printed' => 'Printed (awaiting shipment)',
+                'ready_to_ship' => 'Ready to ship'
+            ];
+            $trackingStatus = $currentApplication?->status && isset($map[$currentApplication->status]) ? $map[$currentApplication->status] : null;
         }
 
         return view('dashboard.applicant.index', compact(
@@ -62,7 +73,8 @@ class ApplicantController extends Controller
             'recentFeedback',
             'pendingDocuments',
             'hasPayments',
-            'trackingInfo'
+            'trackingInfo',
+            'trackingStatus'
         ));
     }
 
@@ -211,6 +223,7 @@ class ApplicantController extends Controller
                         'code'=>strtoupper($r->code),
                         'label'=>$r->label,
                         'required'=>(bool)$r->required,
+                        'translation_possible'=>(bool)($r->translation_possible ?? false),
                         'uploaded'=>$uploadedTypes->contains(strtoupper($r->code)),
                     ];
                     if ($r->required) {
@@ -233,6 +246,7 @@ class ApplicantController extends Controller
                             'code'=>strtoupper($r->code),
                             'label'=>$r->label,
                             'required'=>(bool)$r->required,
+                            'translation_possible'=>(bool)($r->translation_possible ?? false),
                         ]);
                 } catch (\Throwable $e) { $rows = collect(); }
             }
@@ -246,6 +260,7 @@ class ApplicantController extends Controller
                     'code'=>$code,
                     'label'=>$r['label'] ?? $code,
                     'required'=>(bool)($r['required'] ?? false),
+                    'translation_possible'=>(bool)($r['translation_possible'] ?? false),
                     'uploaded'=>$uploadedTypes->contains($code),
                 ];
                 if ($item['required']) {

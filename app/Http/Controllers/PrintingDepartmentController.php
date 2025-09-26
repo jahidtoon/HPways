@@ -8,6 +8,7 @@ use App\Models\Shipment;
 use App\Models\TrackingEvent;
 use App\Models\Document;
 use Illuminate\Support\Facades\Auth;
+use App\Services\CarrierTrackingService;
 
 class PrintingDepartmentController extends Controller
 {
@@ -125,6 +126,13 @@ class PrintingDepartmentController extends Controller
             ->paginate(20);
             
         return view('dashboard.printing.documents', compact('documents'));
+    }
+    
+    // Back-compat route target used in some navs
+    public function printQueue()
+    {
+        // Reuse main dashboard which already includes the queue section
+        return $this->index();
     }
     
     public function management()
@@ -496,6 +504,7 @@ class PrintingDepartmentController extends Controller
         }
         
         $request->validate([
+            'tracking_number' => 'nullable|string|max:100',
             'actual_carrier' => 'nullable|string|max:100',
             'actual_service' => 'nullable|string|max:100',
             'shipped_at' => 'required|date',
@@ -503,6 +512,7 @@ class PrintingDepartmentController extends Controller
         ]);
         
         $shipment->update([
+            'tracking_number' => $request->tracking_number ?: $shipment->tracking_number,
             'actual_carrier' => $request->actual_carrier ?: $shipment->carrier,
             'actual_service' => $request->actual_service ?: $shipment->service,
             'status' => 'shipped',
@@ -616,6 +626,25 @@ class PrintingDepartmentController extends Controller
                 'delivered_at' => optional($shipment->delivered_at)->toDateTimeString(),
             ],
             'events' => $events,
+        ]);
+    }
+
+    /**
+     * Manually refresh tracking status for a specific shipment (printing staff only).
+     */
+    public function refreshTracking(Shipment $shipment, CarrierTrackingService $service)
+    {
+        // Optional: authorize role
+        $user = auth()->user();
+        if (!$user || (!$user->hasRole('printing_department') && !$user->hasRole('admin'))) {
+            abort(403);
+        }
+
+        $summary = $service->fetchAndUpdate($shipment);
+        return response()->json([
+            'success' => true,
+            'status' => $summary['status'] ?? $shipment->status,
+            'events_added' => count($summary['events'] ?? []),
         ]);
     }
     

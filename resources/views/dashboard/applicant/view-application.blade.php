@@ -107,7 +107,11 @@
                 <div class="d-flex flex-wrap gap-2 mt-3">
                     <a href="{{ route('applications.packages.index', $application->id) }}" class="btn btn-outline-primary btn-sm">Choose Package</a>
                     <a href="{{ route('dashboard.applicant.documents.upload', $application->id) }}" class="btn btn-outline-secondary btn-sm">Manage Documents</a>
-                    <a href="{{ route('applications.payments.list', $application->id) }}" class="btn btn-outline-dark btn-sm">Payments</a>
+                    @if($application->selectedPackage && !$application->payments()->where('status', 'succeeded')->exists())
+                        <button onclick="initiatePayment({{ $application->id }})" class="btn btn-success btn-sm">
+                            <i class="fas fa-credit-card me-1"></i>Pay Now - ${{ number_format($application->selectedPackage->price_cents / 100, 2) }}
+                        </button>
+                    @endif
                 </div>
             </div>
         </div>
@@ -170,4 +174,47 @@
 @else
     <div class="alert alert-warning">Application not found.</div>
 @endif
+
+<script>
+function initiatePayment(applicationId) {
+    // Show loading
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+    button.disabled = true;
+
+    // Create payment intent
+    fetch(`/applications/${applicationId}/payment-intent`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            button.innerHTML = originalText;
+            button.disabled = false;
+            return;
+        }
+
+        // Redirect to Stripe Checkout
+        if (data.checkout_url) {
+            window.location.href = data.checkout_url;
+        } else {
+            alert('Payment URL not available');
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Payment intent error:', error);
+        alert('Failed to initiate payment');
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+</script>
 @endsection

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Services\VisaTypeMapper;
+use App\Services\StaffAssignmentService;
 
 class ApplicationIntakeController extends Controller
 {
@@ -42,7 +43,7 @@ class ApplicationIntakeController extends Controller
 
         if (!$application) {
             $application = DB::transaction(function() use ($user,$visaType,$data){
-                return Application::create([
+                $app = Application::create([
                     'user_id' => $user->id,
                     'visa_type' => $visaType,
                     'status' => 'draft',
@@ -50,6 +51,11 @@ class ApplicationIntakeController extends Controller
                     'payment_status' => 'unpaid',
                     'intake_history' => $data['history'],
                 ]);
+
+                // Auto-assign case manager
+                StaffAssignmentService::assignCaseManager($app);
+
+                return $app;
             });
         } else {
             $application->update(['intake_history' => $data['history']]);

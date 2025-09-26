@@ -59,6 +59,11 @@ class RegisterController extends Controller
             ],['progress_pct'=>5,'payment_status'=>'unpaid']); } catch(\Throwable $e) {}
         }
 
+        // Auto-assign case manager if application was created
+        if($application && $application->wasRecentlyCreated) {
+            try { \App\Services\StaffAssignmentService::assignCaseManager($application); } catch(\Throwable $e) { /* ignore */ }
+        }
+
         // If package supplied, validate compatibility and attach
         if($application && $request->filled('pkg')) {
             try {

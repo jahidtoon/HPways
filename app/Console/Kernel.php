@@ -12,7 +12,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Sync tracking every 15 minutes for last 3 days of shipments
+        $schedule->command('tracking:sync --days=3')->everyFifteenMinutes()->withoutOverlapping();
     }
 
     /**

@@ -173,8 +173,7 @@
 /** ================== DATA (Exact business logic) ================== */
 const STRINGS = {
   success: "Congratulations: You might be eligible for this category. Please review our available packages and pricing, and proceed with signing up to get started.",
-  pricingCta: "View Packages",
-  loginCta: "Create Account / Login",
+  pricingCta: "Start Your Application",
   required: "Please select an answer to continue.",
   redirected: "Redirected due to your previous answer.",
   saved: "Your progress is saved locally. You can leave and return later.",
@@ -280,7 +279,6 @@ function render(){
       </div>
       <div class="split" style="margin-top:12px">
         <a class="btn primary cta" id="pricingCta" href="${quiz_spec.meta.routes.pricingUrl}">${STRINGS.pricingCta}</a>
-        <a class="btn cta" href="${quiz_spec.meta.routes.loginUrl}">${STRINGS.loginCta}</a>
         <button class="btn" onclick="reset()">Restart</button>
       </div>
     `;
@@ -306,7 +304,7 @@ function render(){
   if(node && node._terminal === "ineligible"){
     qa.innerHTML = `
       <div class="error" role="alert" aria-live="polite">
-        <strong>Not Eligible:</strong> ${node._message || 'Path not eligible at this time.'}
+        <strong>Sorry, you are not eligible at this time.</strong>
       </div>
       <div class="split" style="margin-top:12px">
         <button class="btn" onclick="reset()">Restart</button>

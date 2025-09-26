@@ -157,57 +157,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // Big Admin Dashboard Routes - Middleware temporarily disabled for development
-Route::prefix('admin')->name('admin.')->group(function() {
-    Route::get('/dashboard', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'index'])->name('dashboard');
-    Route::get('/applications', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'applications'])->name('applications');
-    Route::get('/users', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'users'])->name('users');
-    Route::get('/case-managers', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'caseManagers'])->name('case-managers');
-    Route::get('/attorneys', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'attorneys'])->name('attorneys');
-    Route::get('/printing-staff', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'printingStaff'])->name('printing-staff');
-    Route::get('/reports', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'reports'])->name('reports');
-    Route::get('/settings', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'settings'])->name('settings');
-    Route::post('/users/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'createUser'])->name('users.create');
-    Route::post('/users/{id}/assign-role', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'assignRole'])->name('users.assign-role');
-    Route::post('/case-managers/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'createCaseManager'])->name('case-managers.create');
-    Route::post('/attorneys/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'createAttorney'])->name('attorneys.create');
-    Route::post('/printing-staff/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'createPrintingStaff'])->name('printing-staff.create');
-    Route::get('/printing-staff/{id}/edit', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'editPrintingStaff'])->name('printing-staff.edit');
-    Route::put('/printing-staff/{id}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'updatePrintingStaff'])->name('printing-staff.update');
-    Route::post('/printing-staff/{id}/toggle-status', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'togglePrintingStaffStatus'])->name('printing-staff.toggle-status');
-    Route::delete('/printing-staff/{id}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'deletePrintingStaff'])->name('printing-staff.delete');
-    Route::post('/printing-staff/{id}/assign-jobs', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'assignPrintingJobs'])->name('printing-staff.assign-jobs');
-    
-
-
-    // ================= Packages Management (Admin) =================
-    Route::get('/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesIndex'])->name('packages.index');
-    // Route::get('/packages/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesCreate'])->name('packages.create'); // Disabled
-    // Route::post('/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesStore'])->name('packages.store'); // Disabled
-    Route::get('/packages/{package}/edit', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesEdit'])->name('packages.edit');
-    Route::put('/packages/{package}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesUpdate'])->name('packages.update');
-    Route::patch('/packages/{package}/toggle', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesToggleActive'])->name('packages.toggle');
-    Route::delete('/packages/{package}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesDestroy'])->name('packages.destroy');
-    
-    // Bulk Package Management
-    Route::get('/packages/bulk-edit', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesBulkEdit'])->name('packages.bulk-edit');
-    Route::put('/packages/bulk-update', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesBulkUpdate'])->name('packages.bulk-update');
-    // Route::post('/packages/bulk-create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'packagesBulkCreate'])->name('packages.bulk-create'); // Disabled
-
-    // ================= Quiz Management (Admin) =================
-    Route::get('/quizzes', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'quizzesIndex'])->name('quizzes.index');
-    Route::get('/quizzes/create', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'quizzesCreate'])->name('quizzes.create');
-    Route::post('/quizzes', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'quizzesStore'])->name('quizzes.store');
-    Route::get('/quizzes/{quizNode}/edit', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'quizzesEdit'])->name('quizzes.edit');
-    Route::put('/quizzes/{quizNode}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'quizzesUpdate'])->name('quizzes.update');
-    Route::delete('/quizzes/{quizNode}', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'quizzesDestroy'])->name('quizzes.destroy');
-    Route::get('/quizzes/flowchart', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'quizzesFlowchart'])->name('quizzes.flowchart');
-    Route::get('/quizzes/get-nodes', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'getQuizNodes'])->name('quizzes.get-nodes');
-    Route::post('/quizzes/save-flowchart', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'saveQuizFlowchart'])->name('quizzes.save-flowchart');
-    Route::get('/api/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'getPackagesByVisaType'])->name('api.packages');
-
-    // Meetings (Admin)
-    Route::get('/meetings', [App\Http\Controllers\MeetingsController::class, 'adminIndex'])->name('meetings.index');
-});
+// First admin group removed due to duplicate routes
 
 // Formerly protected workflow routes (now public)
 Route::post('/intake/applications', [ApplicationIntakeController::class,'store'])->name('intake.application.store');
@@ -223,6 +173,7 @@ Route::post('/applications/{application}/packages', [PackageSelectionController:
 // Payments (placeholder intent + confirm)
 Route::get('/applications/{application}/payment-intent', [PaymentIntentController::class,'create'])->name('payments.intent');
 Route::post('/payments/{payment}/confirm', [PaymentIntentController::class,'confirm'])->name('payments.confirm');
+Route::get('/payments/{payment}/success', [PaymentIntentController::class,'success'])->name('payments.success');
 // Review workflow
 Route::post('/applications/{application}/request-review', [ApplicationReviewController::class,'requestReview'])->name('applications.request_review');
 Route::post('/applications/{application}/review/start', [ApplicationReviewController::class,'startReview'])->name('applications.review.start');
@@ -264,6 +215,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     
     // Attorney Management Routes
     Route::get('/attorneys', [AdminDashboardController::class, 'attorneys'])->name('attorneys');
+    Route::post('/attorneys/create', [AdminDashboardController::class, 'createAttorney'])->name('attorneys.create');
     Route::get('/attorneys/{user}', [AdminDashboardController::class, 'viewAttorney'])->name('attorneys.view');
     Route::get('/attorneys/{user}/edit', [AdminDashboardController::class, 'editAttorney'])->name('attorneys.edit');
     Route::put('/attorneys/{user}', [AdminDashboardController::class, 'updateAttorney'])->name('attorneys.update');
@@ -288,6 +240,52 @@ Route::prefix('admin')->name('admin.')->group(function () {
     
     // System Settings
     Route::get('/settings', [AdminDashboardController::class, 'systemSettings'])->name('settings');
+    
+    // Payment Settings
+    Route::get('/payment-settings', [AdminDashboardController::class, 'paymentSettings'])->name('payment-settings');
+    Route::post('/payment-settings', [AdminDashboardController::class, 'updatePaymentSettings'])->name('payment-settings.update');
+    Route::get('/payments', [AdminDashboardController::class, 'payments'])->name('payments');
+    Route::get('/payments/{payment}', [AdminDashboardController::class, 'paymentDetails'])->name('payments.show');
+    
+    // Shipment Tracking
+    Route::get('/shipment-tracking', [AdminDashboardController::class, 'shipmentTracking'])->name('shipment-tracking');
+
+    // Admin Meetings
+    Route::get('/meetings', [\App\Http\Controllers\MeetingsController::class, 'adminIndex'])->name('meetings.index');
+    
+    // Printing Staff Management
+    Route::get('/printing-staff', [AdminDashboardController::class, 'printingStaff'])->name('printing-staff');
+    Route::post('/printing-staff/create', [AdminDashboardController::class, 'createPrintingStaff'])->name('printing-staff.create');
+    Route::get('/printing-staff/{id}/edit', [AdminDashboardController::class, 'editPrintingStaff'])->name('printing-staff.edit');
+    Route::put('/printing-staff/{id}', [AdminDashboardController::class, 'updatePrintingStaff'])->name('printing-staff.update');
+    Route::post('/printing-staff/{id}/toggle-status', [AdminDashboardController::class, 'togglePrintingStaffStatus'])->name('printing-staff.toggle-status');
+    Route::delete('/printing-staff/{id}', [AdminDashboardController::class, 'deletePrintingStaff'])->name('printing-staff.delete');
+    Route::post('/printing-staff/{id}/assign-jobs', [AdminDashboardController::class, 'assignPrintingJobs'])->name('printing-staff.assign-jobs');
+    
+    // Packages Management
+    Route::prefix('packages')->name('packages.')->group(function() {
+        Route::get('/', [AdminDashboardController::class, 'packagesIndex'])->name('index');
+        Route::get('/create', [AdminDashboardController::class, 'packagesCreate'])->name('create');
+        Route::post('/', [AdminDashboardController::class, 'packagesStore'])->name('store');
+        Route::get('/{package}/edit', [AdminDashboardController::class, 'packagesEdit'])->name('edit');
+        Route::put('/{package}', [AdminDashboardController::class, 'packagesUpdate'])->name('update');
+        Route::post('/{package}/toggle', [AdminDashboardController::class, 'packagesToggleActive'])->name('toggle');
+        Route::delete('/{package}', [AdminDashboardController::class, 'packagesDestroy'])->name('destroy');
+        Route::get('/bulk-edit', [AdminDashboardController::class, 'packagesBulkEdit'])->name('bulk-edit');
+        Route::post('/bulk-update', [AdminDashboardController::class, 'packagesBulkUpdate'])->name('bulk-update');
+        Route::post('/bulk-create', [AdminDashboardController::class, 'packagesBulkCreate'])->name('bulk-create');
+    });
+    
+    // Quiz Management
+    Route::prefix('quizzes')->name('quizzes.')->group(function() {
+        Route::get('/', [AdminDashboardController::class, 'quizzesIndex'])->name('index');
+        Route::get('/create', [AdminDashboardController::class, 'quizzesCreate'])->name('create');
+        Route::post('/', [AdminDashboardController::class, 'quizzesStore'])->name('store');
+        Route::get('/{quizNode}/edit', [AdminDashboardController::class, 'quizzesEdit'])->name('edit');
+        Route::put('/{quizNode}', [AdminDashboardController::class, 'quizzesUpdate'])->name('update');
+        Route::delete('/{quizNode}', [AdminDashboardController::class, 'quizzesDestroy'])->name('destroy');
+        Route::post('/save-flowchart', [AdminDashboardController::class, 'saveQuizFlowchart'])->name('save-flowchart');
+    });
     
     // API Routes
     Route::get('/api/packages', [App\Http\Controllers\Dashboard\AdminDashboardController::class, 'getPackagesByVisaType'])->name('api.packages');
@@ -315,6 +313,7 @@ Route::prefix('printing')->name('printing.')->group(function() {
     Route::post('/shipment/{shipment}/ship', [App\Http\Controllers\PrintingDepartmentController::class, 'ship'])->name('ship');
     Route::post('/shipment/{shipment}/update-tracking', [App\Http\Controllers\PrintingDepartmentController::class, 'updateTrackingStatus'])->name('update-tracking');
     Route::get('/shipment/{shipment}/tracking', [App\Http\Controllers\PrintingDepartmentController::class, 'tracking'])->name('tracking');
+    Route::post('/shipment/{shipment}/refresh-tracking', [App\Http\Controllers\PrintingDepartmentController::class, 'refreshTracking'])->name('refresh-tracking');
 
     // Printer-specific application detail view (documents only)
     Route::middleware(['auth','role:printing_department'])->group(function() {

@@ -20,6 +20,12 @@
                     </div>
                     
                     <div class="mb-3">
+                        <label for="tracking_number" class="form-label">Tracking Number (override)</label>
+                        <input type="text" class="form-control" id="tracking_number" name="tracking_number" placeholder="Enter carrier tracking # (optional)">
+                        <div class="form-text">If you generated a real label externally, paste the official tracking number here.</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="actual_carrier" class="form-label">Actual Carrier Used</label>
                         <select class="form-select" id="actual_carrier" name="actual_carrier">
                             <option value="">Same as prepared</option>

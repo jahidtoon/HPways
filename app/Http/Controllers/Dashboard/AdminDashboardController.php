@@ -368,6 +368,93 @@ class AdminDashboardController extends Controller
     {
         return view('dashboard.admin.settings');
     }
+
+    public function paymentSettings()
+    {
+        $paymentSettings = \App\Models\PaymentSetting::all();
+        return view('dashboard.admin.payment-settings', compact('paymentSettings'));
+    }
+
+    public function updatePaymentSettings(Request $request)
+    {
+        $request->validate([
+            'gateway' => 'required|string',
+            'is_active' => 'boolean',
+            'credentials' => 'array',
+            'settings' => 'array',
+        ]);
+
+        $setting = \App\Models\PaymentSetting::updateOrCreate(
+            ['gateway' => $request->gateway],
+            [
+                'is_active' => $request->is_active ?? false,
+                'credentials' => $request->credentials ?? [],
+                'settings' => $request->settings ?? [],
+            ]
+        );
+
+        return redirect()->back()->with('success', ucfirst($request->gateway) . ' settings updated successfully.');
+    }
+
+    public function payments()
+    {
+        $payments = \App\Models\Payment::with(['application.user'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(25);
+
+        $stats = [
+            'total_payments' => \App\Models\Payment::count(),
+            'successful_payments' => \App\Models\Payment::where('status', 'succeeded')->count(),
+            'total_amount' => \App\Models\Payment::where('status', 'succeeded')->sum('amount_cents') / 100,
+            'pending_payments' => \App\Models\Payment::where('status', 'pending')->count(),
+            'failed_payments' => \App\Models\Payment::where('status', 'failed')->count(),
+        ];
+
+        return view('dashboard.admin.payments', compact('payments', 'stats'));
+    }
+
+    /**
+     * Return payment details JSON for admin modal view.
+     */
+    public function paymentDetails(\App\Models\Payment $payment)
+    {
+        $payment->load(['application.user']);
+        return response()->json([
+            'id' => $payment->id,
+            'provider' => $payment->provider,
+            'provider_ref' => $payment->provider_ref,
+            'amount' => number_format($payment->amount_cents / 100, 2),
+            'currency' => strtoupper($payment->currency),
+            'status' => $payment->status,
+            'created_at' => optional($payment->created_at)->toDateTimeString(),
+            'paid_at' => optional($payment->paid_at)->toDateTimeString(),
+            'application' => $payment->application ? [
+                'id' => $payment->application->id,
+                'visa_type' => $payment->application->visa_type,
+                'user' => $payment->application->user ? [
+                    'name' => $payment->application->user->name,
+                    'email' => $payment->application->user->email,
+                ] : null,
+            ] : null,
+            'payload' => $payment->payload,
+        ]);
+    }
+    
+    public function shipmentTracking()
+    {
+        $shipments = \App\Models\Shipment::with(['application.user'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(25);
+
+        $stats = [
+            'total_shipments' => \App\Models\Shipment::count(),
+            'shipped_shipments' => \App\Models\Shipment::whereNotNull('shipped_at')->count(),
+            'delivered_shipments' => \App\Models\Shipment::whereNotNull('delivered_at')->count(),
+            'pending_shipments' => \App\Models\Shipment::whereNull('shipped_at')->count(),
+        ];
+
+        return view('dashboard.admin.shipment-tracking', compact('shipments', 'stats'));
+    }
     
     public function caseManagers()
     {
@@ -677,16 +764,15 @@ class AdminDashboardController extends Controller
     public function createAttorney(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'first_name' => 'nullable|string|max:255',
-            'last_name' => 'nullable|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
             'username' => 'nullable|string|max:255|unique:users,username',
         ]);
 
         $user = User::create([
-            'name' => $request->name,
+            'name' => trim($request->first_name . ' ' . $request->last_name),
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'first_name' => $request->first_name,
@@ -702,16 +788,15 @@ class AdminDashboardController extends Controller
     public function createPrintingStaff(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'first_name' => 'nullable|string|max:255',
-            'last_name' => 'nullable|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
             'username' => 'nullable|string|max:255|unique:users,username',
         ]);
 
         $user = User::create([
-            'name' => $request->name,
+            'name' => trim($request->first_name . ' ' . $request->last_name),
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'first_name' => $request->first_name,
@@ -762,10 +847,9 @@ class AdminDashboardController extends Controller
             }
 
             $rules = [
-                'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email,' . $id,
-                'first_name' => 'nullable|string|max:255',
-                'last_name' => 'nullable|string|max:255',
+                'first_name' => 'required|string|max:255',
+                'last_name' => 'required|string|max:255',
                 'username' => 'nullable|string|max:255|unique:users,username,' . $id,
                 'status' => 'required|in:active,inactive'
             ];
@@ -778,7 +862,7 @@ class AdminDashboardController extends Controller
             $validated = $request->validate($rules);
 
             $updateData = [
-                'name' => $validated['name'],
+                'name' => trim($validated['first_name'] . ' ' . $validated['last_name']),
                 'email' => $validated['email'],
                 'first_name' => $validated['first_name'],
                 'last_name' => $validated['last_name'],

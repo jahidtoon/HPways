@@ -28,57 +28,70 @@
 
 @section('content')
 <div class="row g-3">
-    <div class="col-lg-6">
+    <div class="col-lg-7">
         <div class="app-card h-100">
             <div class="app-card-header px-3 py-3 d-flex justify-content-between align-items-center">
-                <strong>Pending Documents</strong>
-                <span class="pill pill-count">{{ is_array($pendingDocuments) ? count($pendingDocuments) : 0 }}</span>
+                <strong>Uploaded Documents</strong>
+                <span class="pill pill-count">{{ is_array($uploadedDocuments ?? null) ? count($uploadedDocuments) : ($currentApplication?->documents?->count() ?? 0) }}</span>
             </div>
             <div class="p-3 p-md-4">
-                @if(!empty($pendingDocuments))
-                    <div>
-                        @foreach($pendingDocuments as $doc)
-                            <div class="doc-item d-flex justify-content-between align-items-start">
-                                <div>
+                @if(!empty($uploadedDocuments))
+                    @foreach($uploadedDocuments as $doc)
+                        <div class="doc-item d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold">{{ $doc['label'] }}</div>
+                                <div class="mt-1 d-flex align-items-center gap-2">
+                                    <span class="chip">{{ $doc['code'] }}</span>
                                     @php
-                                        $label = is_array($doc) ? ($doc['label'] ?? ($doc['code'] ?? 'Document')) : (string) $doc;
-                                        $code  = is_array($doc) ? ($doc['code'] ?? null) : null;
+                                        $status = strtolower($doc['status'] ?? 'pending');
+                                        $badgeClass = match($status){
+                                            'approved' => 'bg-success',
+                                            'rejected' => 'bg-danger',
+                                            'pending' => 'bg-warning text-dark',
+                                            default => 'bg-secondary'
+                                        };
                                     @endphp
-                                    <div>{{ $label }}</div>
-                                    @if($code)
-                                        <div class="mt-1"><span class="chip">{{ $code }}</span></div>
+                                    <span class="badge {{ $badgeClass }} text-capitalize">{{ $status }}</span>
+                                    @if(($doc['count'] ?? 1) > 1)
+                                        <span class="pill pill-count" title="Multiple uploads detected">x{{ $doc['count'] }}</span>
                                     @endif
                                 </div>
-                                @if($currentApplication)
-                                    <a href="{{ route('dashboard.applicant.documents.upload', $currentApplication->id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-upload me-1"></i>Upload</a>
+                                @if(!empty($doc['latest_name']))
+                                    <div class="help mt-1">Latest: {{ $doc['latest_name'] }} • {{ $doc['created_at'] }}</div>
                                 @endif
                             </div>
-                        @endforeach
-                    </div>
+                            <div class="d-flex gap-2">
+                                <a href="/view-document.php?id={{ $doc['latest_id'] }}&action=download" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye me-1"></i>Open</a>
+                                <a href="/view-document.php?id={{ $doc['latest_id'] }}&action=download&download=1" class="btn btn-sm btn-outline-secondary"><i class="fas fa-download me-1"></i>Download</a>
+                            </div>
+                        </div>
+                    @endforeach
                 @else
-                    <div class="text-muted">No pending documents.</div>
+                    <div class="text-muted">No documents uploaded yet.</div>
                 @endif
+                <div class="alert alert-info mt-3">
+                    Note: If you re-upload the same document type, the latest file will be shown here. Attorneys will review and mark each document as <strong>approved</strong> or <strong>rejected</strong>.
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-lg-6">
+    <div class="col-lg-5">
         <div class="app-card h-100">
             <div class="app-card-header px-3 py-3 d-flex justify-content-between align-items-center">
                 <strong>My Applications</strong>
             </div>
             <div class="p-3 p-md-4">
-                    @foreach($applications as $app)
+                @foreach($applications as $app)
                     <div class="doc-item d-flex justify-content-between align-items-center">
                         <div>
                             <div class="fw-semibold">Case #{{ $app->id }} · {{ $app->visa_type ?? '—' }}</div>
                             <div class="help"><span class="pill pill-status">{{ str_replace('_',' ', $app->status ?? 'new') }}</span></div>
                         </div>
                         <div class="d-flex gap-2">
-                            <a href="{{ route('dashboard.applicant.documents.upload', $app->id) }}" class="btn btn-sm btn-outline-secondary">Manage</a>
                             <a href="{{ route('dashboard.applicant.application.view', $app->id) }}" class="btn btn-sm btn-outline-primary">View</a>
                         </div>
                     </div>
-                    @endforeach
+                @endforeach
             </div>
         </div>
     </div>

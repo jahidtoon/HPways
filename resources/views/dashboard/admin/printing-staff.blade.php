@@ -264,10 +264,6 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="name" class="form-label">Full Name</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
-                    </div>
-                    <div class="mb-3">
                         <label for="email" class="form-label">Email</label>
                         <input type="email" class="form-control" id="email" name="email" required>
                     </div>
@@ -308,10 +304,6 @@
                 @method('PUT')
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="edit_name" class="form-label">Full Name</label>
-                            <input type="text" class="form-control" id="edit_name" name="name" required>
-                        </div>
                         <div class="col-md-6 mb-3">
                             <label for="edit_email" class="form-label">Email</label>
                             <input type="email" class="form-control" id="edit_email" name="email" required>
@@ -447,7 +439,6 @@ function editStaff(staffId) {
         document.getElementById('edit_password_confirmation').value = '';
         
         // Populate form fields
-        document.getElementById('edit_name').value = data.name || '';
         document.getElementById('edit_email').value = data.email || '';
         document.getElementById('edit_first_name').value = data.first_name || '';
         document.getElementById('edit_last_name').value = data.last_name || '';

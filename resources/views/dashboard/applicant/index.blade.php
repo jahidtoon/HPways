@@ -134,9 +134,7 @@
                             <a href="{{ route('applications.packages.index', $currentApplication->id) }}" class="btn btn-outline-success btn-sm">
                                 Choose Package
                             </a>
-                            <a href="{{ route('applications.payments.list', $currentApplication->id) }}" class="btn btn-outline-dark btn-sm">
-                                Payments
-                            </a>
+                            
                         </div>
                     @else
                         <p class="text-muted mb-3">You don’t have an application yet.</p>
@@ -204,4 +202,92 @@
         </div>
     </div>
 </div>
+
+<!-- Payment Required Modal -->
+@if(!$hasPayments && $currentApplication)
+<div class="modal fade" id="paymentRequiredModal" tabindex="-1" aria-labelledby="paymentRequiredModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="paymentRequiredModalLabel">
+                    <i class="fas fa-credit-card me-2"></i> Payment required to continue
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <div class="d-inline-flex flex-wrap gap-2 align-items-center justify-content-center">
+                        <span class="badge bg-light text-dark">Visa: {{ strtoupper($currentApplication->visa_type) }}</span>
+                        @if($currentApplication->selectedPackage)
+                            <span class="badge bg-light text-dark">Package: {{ $currentApplication->selectedPackage->name }}</span>
+                            <span class="badge bg-primary-subtle text-primary">
+                                ${{ number_format($currentApplication->selectedPackage->price_cents / 100, 2) }}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="d-grid">
+                    <button onclick="initiatePayment({{ $currentApplication->id }})" class="btn btn-primary btn-lg">
+                        Pay now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    @if(!$hasPayments && $currentApplication)
+        var paymentModal = new bootstrap.Modal(document.getElementById('paymentRequiredModal'), {
+            backdrop: 'static',
+            keyboard: false
+        });
+        paymentModal.show();
+    @endif
+});
+
+// Payment initiation function
+function initiatePayment(applicationId) {
+    // Show loading on the button
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+    button.disabled = true;
+
+    // Create payment intent
+    fetch(`/applications/${applicationId}/payment-intent`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            button.innerHTML = originalText;
+            button.disabled = false;
+            return;
+        }
+
+        // Redirect to Stripe Checkout
+        if (data.checkout_url) {
+            window.location.href = data.checkout_url;
+        } else {
+            alert('Payment URL not available');
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Payment intent error:', error);
+        alert('Failed to initiate payment');
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+</script>
 @endsection

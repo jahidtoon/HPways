@@ -46,7 +46,7 @@ class ApplicantController extends Controller
         
         // Check payment status
         $hasPayments = $currentApplication && Payment::where('application_id', $currentApplication->id)
-            ->where('status', 'completed')
+            ->where('status', 'succeeded')
             ->exists();
             
         // Get tracking information if available (status + number)
@@ -108,81 +108,53 @@ class ApplicantController extends Controller
 
         $currentApplication = $applications->first();
 
-        // Determine required docs per package or visa type, then compute pending
-        $pendingDocuments = [];
+        // Build a list of uploaded documents grouped by type with latest status
+        $uploadedDocuments = [];
         if ($currentApplication) {
-            $uploadedTypes = $currentApplication->documents->pluck('type')->filter()->map(fn($t)=>strtoupper($t))->unique();
+            $docs = $currentApplication->documents()->orderBy('created_at','desc')->get();
 
-            // Prefer package-specific required documents
-            $requiredFromPackage = collect();
-            if ($currentApplication->selectedPackage && Schema::hasTable('package_required_documents')) {
-                try {
-                    $requiredFromPackage = $currentApplication->selectedPackage
-                        ->requiredDocuments()
-                        ->where('active', true)
-                        ->get();
-                } catch (\Throwable $e) {
-                    // ignore and fall back to visa_type rules
-                    $requiredFromPackage = collect();
+            // Build label map for codes from package/visa requirements
+            $labelsByCode = [];
+            try {
+                if ($currentApplication->selectedPackage && Schema::hasTable('package_required_documents')) {
+                    $rows = $currentApplication->selectedPackage->requiredDocuments()->where('active',true)->get();
+                    foreach($rows as $r){ $labelsByCode[strtoupper($r->code)] = $r->label; }
                 }
+            } catch (\Throwable $e) { /* ignore */ }
+            if (empty($labelsByCode)) {
+                try {
+                    $visa = $currentApplication->visa_type;
+                    if ($visa && Schema::hasTable('required_documents')) {
+                        $rows = \App\Models\RequiredDocument::where('visa_type',$visa)->where('active',true)->get();
+                        foreach($rows as $r){ $labelsByCode[strtoupper($r->code)] = $r->label; }
+                    } else if ($visa) {
+                        foreach (config('required_documents.'.strtoupper($visa), []) as $r) {
+                            if (!empty($r['code']) && !empty($r['label'])) $labelsByCode[strtoupper($r['code'])] = $r['label'];
+                        }
+                    }
+                } catch (\Throwable $e) { /* ignore */ }
             }
 
-            if ($requiredFromPackage->count() > 0) {
-                foreach ($requiredFromPackage as $req) {
-                    $code = strtoupper($req->code);
-                    if ($req->required && !$uploadedTypes->contains($code)) {
-                        $pendingDocuments[] = [
-                            'code' => $code,
-                            'label' => $req->label,
-                            'translation_possible' => (bool)$req->translation_possible,
-                        ];
-                    }
-                }
-            } else {
-                // Fall back to visa_type-level required documents table if present
-                try {
-                    $visaType = $currentApplication->visa_type;
-                    if ($visaType) {
-                        $reqs = collect();
-                        if (Schema::hasTable('required_documents')) {
-                            $reqs = \App\Models\RequiredDocument::query()
-                                ->where('visa_type', $visaType)
-                                ->where('active', true)
-                                ->get()
-                                ->map(fn($r)=>[
-                                    'code'=>strtoupper($r->code),
-                                    'label'=>$r->label,
-                                    'required'=>(bool)$r->required,
-                                    'translation_possible'=>(bool)$r->translation_possible
-                                ]);
-                        }
-                        // If DB has none, use config fallback
-                        if ($reqs->isEmpty()) {
-                            $defaults = config('required_documents.'.strtoupper($visaType), []);
-                            $reqs = collect($defaults);
-                        }
-                        foreach ($reqs as $req) {
-                            $code = strtoupper($req['code'] ?? '');
-                            if (($req['required'] ?? false) && $code && !$uploadedTypes->contains($code)) {
-                                $pendingDocuments[] = [
-                                    'code' => $code,
-                                    'label' => $req['label'] ?? $code,
-                                    'translation_possible' => (bool)($req['translation_possible'] ?? false),
-                                ];
-                            }
-                        }
-                    } else {
-                        // Last resort: use saved missing_documents field if present
-                        $pendingDocuments = $currentApplication->missing_documents ?? [];
-                    }
-                } catch (\Throwable $e) {
-                    // On any error, do not block the page; use legacy field
-                    $pendingDocuments = $currentApplication->missing_documents ?? [];
-                }
+            // Group by type (code) and collapse duplicates, keeping latest
+            $grouped = $docs->groupBy(function($d){ return strtoupper($d->type ?? 'GENERAL'); });
+            foreach($grouped as $code => $list){
+                $latest = $list->first();
+                $uploadedDocuments[] = [
+                    'code' => $code,
+                    'label' => $labelsByCode[$code] ?? $code,
+                    'latest_id' => $latest->id,
+                    'latest_name' => $latest->original_name,
+                    'status' => $latest->status ?? 'pending',
+                    'count' => $list->count(),
+                    'created_at' => optional($latest->created_at)->format('M d, Y'),
+                ];
             }
+
+            // Sort by label for stable UI
+            usort($uploadedDocuments, fn($a,$b)=>strcmp($a['label'],$b['label']));
         }
 
-        return view('dashboard.applicant.documents', compact('applications', 'currentApplication', 'pendingDocuments', 'user'));
+        return view('dashboard.applicant.documents', compact('applications', 'currentApplication', 'uploadedDocuments', 'user'));
     }
 
     public function uploadDocuments($application = null)
@@ -283,8 +255,17 @@ class ApplicantController extends Controller
             ->with('application')
             ->orderBy('created_at', 'desc')
             ->get();
-            
-        return view('dashboard.applicant.payments', compact('payments'));
+
+        // Get applications with selected packages but no completed payments
+        $pendingPayments = Application::where('user_id', auth()->id())
+            ->whereNotNull('selected_package_id')
+            ->whereDoesntHave('payments', function($query) {
+                $query->where('status', 'succeeded');
+            })
+            ->with('selectedPackage')
+            ->get();
+
+        return view('dashboard.applicant.payments', compact('payments', 'pendingPayments'));
     }
 
     public function resources()

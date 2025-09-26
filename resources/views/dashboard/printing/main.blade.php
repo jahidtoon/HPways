@@ -729,6 +729,9 @@
                                                 <button class="btn btn-outline-secondary btn-sm" onclick="viewTracking({{ $shipment->id }})">
                                                     <i class="fas fa-route"></i> Track
                                                 </button>
+                                                <button class="btn btn-outline-secondary btn-sm" onclick="refreshTracking({{ $shipment->id }})" title="Refresh from carrier">
+                                                    <i class="fas fa-sync"></i>
+                                                </button>
                                                 @if($shipment->status !== 'delivered')
                                                     <button class="btn btn-outline-success btn-sm" onclick="markDelivered({{ $shipment->id }})" title="Mark as Delivered">
                                                         <i class="fas fa-check"></i>
@@ -971,6 +974,23 @@ async function markDelivered(shipmentId) {
     } catch (err) {
         console.error(err);
         alert('Failed to mark delivered');
+    }
+}
+
+async function refreshTracking(shipmentId){
+    try {
+        const res = await fetch(`/printing/shipment/${shipmentId}/refresh-tracking`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+            credentials: 'same-origin'
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) throw new Error(data.message || 'Refresh failed');
+        // Reload to update status badges and dates
+        location.reload();
+    } catch (err) {
+        console.error('Refresh tracking error:', err);
+        alert('Failed to refresh tracking: ' + (err.message || 'Unknown error'));
     }
 }
 

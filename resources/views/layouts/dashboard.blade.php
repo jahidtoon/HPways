@@ -27,6 +27,7 @@
             --transition-speed: 0.3s;
         }
         
+        html, body { margin: 0; padding: 0; }
         body {
             background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -34,6 +35,7 @@
             overscroll-behavior-x: none; /* prevent back/forward swipe overlay */
             overflow-x: hidden; /* avoid accidental horizontal scroll */
             touch-action: pan-y; /* allow vertical scroll only */
+            margin: 0; /* remove default browser margin causing top gap */
         }
 
         /* Defensive: prevent any oversized decorative icons from leaking between pages */
@@ -42,46 +44,19 @@
         i[class^="fa-"]::before, i[class*=" fa-"]::before { font-size: 1em; }
         .main-content { overflow-x: hidden; overscroll-behavior: contain; }
         
-        /* Remove any demo/tutorial visual indicators */
+        /* Remove any demo/tutorial overlays (scoped, non-destructive) */
         .demo-arrow, .tutorial-arrow, .highlight-indicator, .guide-pointer,
-        .nav-item::after, .nav-link::after, [data-demo], [data-tutorial],
+        [data-demo], [data-tutorial],
         .demo-overlay, .tutorial-overlay { display: none !important; }
         
-        /* Block all possible arrow/pointer indicators - AGGRESSIVE MODE */
-        * { 
-            --arrow-display: none !important;
-            --pointer-display: none !important;
-        }
-        *::before, *::after { 
-            content: none !important; 
-            display: none !important;
-            visibility: hidden !important;
-        }
-        .sidebar *, .nav-item *, .nav-link *,
-        .sidebar *::before, .sidebar *::after,
-        .nav-item::before, .nav-item::after,
-        .nav-link::before, .nav-link::after { 
-            display: block !important; 
-            content: "" !important; 
-        }
-        .sidebar *::before, .sidebar *::after,
-        .nav-item::before, .nav-item::after,
-        .nav-link::before, .nav-link::after { 
-            display: none !important; 
-            content: none !important; 
-            border: none !important;
-            background: transparent !important;
-        }
-        
-        /* Prevent external overlay elements */
+        /* Prevent external overlay elements (avoid touching FA icons) */
         div[style*="position: absolute"][style*="arrow"],
         div[style*="position: fixed"][style*="arrow"],
         div[style*="border-left"][style*="red"],
         div[style*="border-right"][style*="red"],
         div[style*="background: red"],
         div[style*="background-color: red"],
-        [style*="border-color: red"],
-        [class*="arrow"], [class*="pointer"], [class*="highlight"] { 
+        [style*="border-color: red"] { 
             display: none !important; 
             visibility: hidden !important;
         }
@@ -136,6 +111,17 @@
             width: 45px;
             margin-right: 0.75rem;
             border-radius: 8px;
+            object-fit: contain;
+        }
+        /* Larger logo variant when text is hidden (applicant view) */
+        .sidebar-logo--large { height: 64px; width: 64px; margin-right: 0; }
+        .sidebar-brand.only-logo { padding: 1.25rem 1.25rem; justify-content: center; }
+        .sidebar-brand.only-logo .sidebar-logo { 
+            width: 100%;
+            height: auto;
+            max-height: 120px; /* fills the red box area without overflow */
+            margin: 0 auto; 
+            display: block; 
             object-fit: contain;
         }
         
@@ -429,6 +415,63 @@
             display: none;
         }
         
+        /* Mobile Header */
+        .mobile-header {
+            position: sticky;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: #ffffff;
+            border-bottom: 1px solid rgba(226,232,240,0.7);
+            z-index: 1100; /* above sidebar (1000) */
+            display: none; /* hidden by default, shown on mobile */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .mobile-header .mobile-header-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mobile-header .mobile-menu-toggle {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--primary);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(58,54,216,0.25);
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mobile-header .mobile-menu-toggle i { font-size: 1.2rem; line-height: 1; }
+        .mobile-header .mobile-logo {
+            height: 32px;
+            object-fit: contain;
+        }
+        
+        @media (max-width: 991.98px) {
+            .mobile-header { display: flex; }
+            /* Give room under sticky header */
+            .main-content { padding-top: 0.5rem; }
+            /* Hide empty top nav on mobile to avoid extra spacing */
+            .top-nav { display: none; }
+            /* Hide sidebar brand text on mobile */
+            .sidebar-brand .brand-text { display: none !important; }
+            .sidebar-brand { justify-content: center; }
+            .sidebar-brand .sidebar-logo { height: 56px; width: 56px; }
+        }
+        
         /* Page Title Styles */
         .page-title {
             font-size: 1.75rem;
@@ -484,12 +527,12 @@
     <div class="d-flex">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <div class="sidebar-brand d-flex align-items-center">
+            @php
+                $__user = auth()->user();
+                $__role = $__user && $__user->getRoleNames()->isNotEmpty() ? $__user->getRoleNames()->first() : 'applicant';
+            @endphp
+            <div class="sidebar-brand d-flex align-items-center only-logo">
                 <img src="{{ asset('images/logo.png') }}" alt="Horizon Pathways Logo" class="sidebar-logo">
-                <div class="brand-text">
-                    <h1 class="mb-0">Horizon Pathways</h1>
-                    <span>Visa Application Platform</span>
-                </div>
             </div>
             
             <div class="sidebar-nav-container" style="flex: 1; overflow-y: auto; overflow-x: hidden;">
@@ -704,9 +747,15 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-file-invoice"></i>
-                            <span>Payments & Billing</span>
+                        <a href="{{ route('admin.payment-settings') }}" class="nav-link {{ request()->routeIs('admin.payment-settings') ? 'active' : '' }}">
+                            <i class="fas fa-credit-card"></i>
+                            <span>Payment Settings</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('admin.shipment-tracking') }}" class="nav-link {{ request()->routeIs('admin.shipment-tracking') ? 'active' : '' }}">
+                            <i class="fas fa-truck"></i>
+                            <span>Shipment Tracking</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -728,19 +777,6 @@
                         </a>
                     </li>
 
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-shipping-fast"></i>
-                            <span>Shipment Tracking</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="fas fa-history"></i>
-                            <span>Activity Logs</span>
-                        </a>
-                    </li>
 
                 @else
                     <!-- Default fallback menu -->
@@ -801,11 +837,19 @@
         
         <!-- Main Content -->
         <div class="main-content">
-            <!-- Top Navigation -->
+            <!-- Mobile Header -->
+            <div class="mobile-header d-lg-none">
+                <div class="mobile-header-inner">
+                    <button class="mobile-menu-toggle" type="button" aria-label="Open menu">
+                        <i class="fas fa-ellipsis-vertical"></i>
+                    </button>
+                    <img src="{{ asset('images/logo.png') }}" alt="Horizon Pathways" class="mobile-logo">
+                </div>
+            </div>
+            
+            <!-- Top Navigation (kept minimal) -->
             <nav class="top-nav">
-                <button class="navbar-toggler d-lg-none" type="button">
-                    <i class="fas fa-bars"></i>
-                </button>
+                <!-- Old mobile toggler removed; using mobile header toggle instead -->
             </nav>
             
             <!-- Page Title -->
@@ -838,30 +882,13 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Remove any arrow/pointer indicators
+    document.addEventListener('DOMContentLoaded', function() {
+            // Remove only known demo/tutorial overlays (do not touch FA icons)
             const removeArrowIndicators = () => {
-                // Remove elements with arrow/pointer classes
-                document.querySelectorAll('[class*="arrow"], [class*="pointer"], [class*="highlight"], [class*="demo"], [class*="tutorial"]').forEach(el => {
+                document.querySelectorAll('.demo-arrow, .tutorial-arrow, .highlight-indicator, .guide-pointer, [data-demo], [data-tutorial], .demo-overlay, .tutorial-overlay').forEach(el => {
                     el.remove();
                 });
-                
-                // Remove elements with red styling that might be arrows
-                document.querySelectorAll('div, span').forEach(el => {
-                    const style = el.getAttribute('style') || '';
-                    if (style.includes('red') && (style.includes('border') || style.includes('background'))) {
-                        el.remove();
-                    }
-                    if (style.includes('position: absolute') && style.includes('arrow')) {
-                        el.remove();
-                    }
-                });
-                
-                // Remove any pseudo-element content from navigation items
-                document.querySelectorAll('.nav-item, .nav-link').forEach(el => {
-                    el.style.setProperty('--after-content', 'none', 'important');
-                    el.style.setProperty('--before-content', 'none', 'important');
-                });
+                // Avoid removing legitimate icons like fa-arrow-up
             };
             
             // Defensive runtime fix: clamp any stray giant icons (e.g., injected chevrons) inside content area
@@ -895,20 +922,21 @@
             });
             observer.observe(document.body, { childList: true, subtree: true });
             // Mobile sidebar toggle
-            const navbarToggler = document.querySelector('.navbar-toggler');
             const sidebar = document.querySelector('.sidebar');
-            
-            if (navbarToggler) {
-                navbarToggler.addEventListener('click', function() {
+            const togglers = document.querySelectorAll('.navbar-toggler, .mobile-menu-toggle');
+
+            togglers.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
                     sidebar.classList.toggle('show');
                 });
-            }
-            
+            });
+
             // Close sidebar when clicking outside on mobile
             document.addEventListener('click', function(event) {
+                const clickedToggle = event.target.closest('.navbar-toggler, .mobile-menu-toggle');
                 if (window.innerWidth < 992 && sidebar.classList.contains('show') && 
-                    !sidebar.contains(event.target) && 
-                    !navbarToggler.contains(event.target)) {
+                    !sidebar.contains(event.target) && !clickedToggle) {
                     sidebar.classList.remove('show');
                 }
             });
